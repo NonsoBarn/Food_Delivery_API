@@ -1,8 +1,24 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { WinstonModule } from 'nest-winston';
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DatabaseModule } from './database/database.module';
+
+// Filters
+import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { TypeOrmExceptionFilter } from './common/filters/typeorm-exception.filter';
+
+// Interceptors
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+
+// Middleware
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+
+// Config
+import { loggerConfig } from './config/logger.config';
 
 @Module({
   imports: [
@@ -12,9 +28,34 @@ import { DatabaseModule } from './database/database.module';
       envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
     }),
 
+    // Logging
+    WinstonModule.forRoot(loggerConfig),
+
+    // Database
     DatabaseModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService, // Global exception filters
+    {
+      provide: APP_FILTER,
+      useClass: TypeOrmExceptionFilter,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
+
+    // Global interceptors
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
+    },
+  ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Apply request ID middleware to all routes
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}
