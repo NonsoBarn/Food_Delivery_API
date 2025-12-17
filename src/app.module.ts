@@ -19,6 +19,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 
 // Config
 import { loggerConfig } from './config/logger.config';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -33,6 +34,8 @@ import { loggerConfig } from './config/logger.config';
 
     // Database
     DatabaseModule,
+
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [
