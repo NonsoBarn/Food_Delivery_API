@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: food_delivery_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: food_delivery_dev
+    ports:
+      - '5432:5432'
+    volumes:
+      # Persist data even if container is removed
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - food_delivery_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: food_delivery_redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    networks:
+      - food_delivery_network
+
+  # NestJS Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: food_delivery_app
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: food_delivery_dev
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      # Mount source code for hot reload in development
+      - ./src:/app/src
+      - ./package.json:/app/package.json
+      - /app/node_modules
+    networks:
+      - food_delivery_network
+
+# Named volumes for data persistence
+volumes:
+  postgres_data:
+  redis_data:
+
+# Custom network for service communication
+networks:
+  food_delivery_network:
+    driver: bridge
