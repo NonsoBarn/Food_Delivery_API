@@ -1,0 +1,20 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import { Injectable, NestMiddleware } from '@nestjs/common';
+import { Request, Response, NextFunction } from 'express';
+import { v4 as uuidv4 } from 'uuid';
+
+@Injectable()
+export class RequestIdMiddleware implements NestMiddleware {
+  use(req: Request, res: Response, next: NextFunction) {
+    // Generate or use existing request ID
+    const requestId = req.headers['x-request-id'] || uuidv4();
+
+    // Attach to request object
+    (req as any).id = requestId;
+
+    // Add to response headers
+    res.setHeader('X-Request-Id', requestId);
+
+    next();
+  }
+}
