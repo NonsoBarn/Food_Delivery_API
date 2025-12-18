@@ -1,9 +1,16 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Enable API versioning
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1', // Default to v1 if no version specified
+    prefix: 'api/v', // Creates /api/v1, /api/v2, etc.
+  });
 
   // Enable global validation
   app.useGlobalPipes(
@@ -22,5 +29,6 @@ async function bootstrap() {
 
   await app.listen(port);
   console.log(`🚀 Application is running on: http://localhost:${port}`);
+  console.log(`📡 API v1: http://localhost:${port}/api/v1`);
 }
 bootstrap();
