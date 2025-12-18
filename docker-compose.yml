@@ -54,6 +54,7 @@ services:
       # Mount source code for hot reload in development
       - ./src:/app/src
       - ./package.json:/app/package.json
+      - ./logs:/app/logs
       - /app/node_modules
     networks:
       - food_delivery_network

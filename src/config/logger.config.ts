@@ -22,7 +22,7 @@ export const loggerConfig: WinstonModuleOptions = {
 
     // File logging - errors only
     new winston.transports.File({
-      filename: 'logs/error.log',
+      filename: '/app/logs/error.log',
       level: 'error',
       format: winston.format.combine(
         winston.format.timestamp(),
@@ -32,7 +32,7 @@ export const loggerConfig: WinstonModuleOptions = {
 
     // File logging - all logs
     new winston.transports.File({
-      filename: 'logs/combined.log',
+      filename: '/app/logs/combined.log',
       format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.json(),

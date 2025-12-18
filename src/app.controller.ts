@@ -41,4 +41,11 @@ export class AppController {
       'password must be longer than 6 characters',
     ]);
   }
+
+  // Test 500 error logging
+  @Get('test/error-500')
+  testServerError500() {
+    // This will trigger a 500 Internal Server Error
+    throw new Error('This is a test 500 error!');
+  }
 }
