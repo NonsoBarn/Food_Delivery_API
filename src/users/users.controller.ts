@@ -19,12 +19,12 @@ import { API_VERSIONS } from '../common/constants/api-versions';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // @Post('register')
-  // async register(
-  //   @Body(ValidationPipe) createUserDto: CreateUserDto,
-  // ): Promise<UserResponseDto> {
-  //   return this.usersService.create(createUserDto);
-  // }
+  @Post('register')
+  async register(
+    @Body(ValidationPipe) createUserDto: CreateUserDto,
+  ): Promise<UserResponseDto> {
+    return this.usersService.create(createUserDto);
+  }
 
   // Note2self : should be in its own controller {src/users/v2/users.controller.ts}
   @Post('register')
