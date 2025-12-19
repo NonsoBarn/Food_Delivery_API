@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   Injectable,
   UnauthorizedException,
@@ -80,8 +79,11 @@ export class AuthService {
           role: user.role,
         },
       });
-    } catch (error) {
-      this.logger.error('Refresh token validation failed', error.stack);
+    } catch (error: unknown) {
+      this.logger.error(
+        'Refresh token validation failed',
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
   }

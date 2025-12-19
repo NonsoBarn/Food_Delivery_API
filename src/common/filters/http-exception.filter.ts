@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-enum-comparison */
 import {
   ExceptionFilter,
   Catch,
@@ -12,6 +11,20 @@ import { Request, Response } from 'express';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { Logger as WinstonLogger } from 'winston';
 
+// Extend Express Request type for request.id
+declare module 'express' {
+  interface Request {
+    id?: string;
+  }
+}
+
+// Type for HttpException response
+interface HttpExceptionResponse {
+  message?: string | string[];
+  error?: string;
+  statusCode?: number;
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   constructor(
@@ -19,11 +32,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     private readonly logger: WinstonLogger,
   ) {}
 
-  catch(exception: unknown, host: ArgumentsHost) {
+  catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-    const requestId = (request as any).id || 'unknown';
+    const requestId = request.id || 'unknown';
 
     const status =
       exception instanceof HttpException
@@ -35,10 +48,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.message
         : 'Internal server error';
 
-    const errorResponse =
-      exception instanceof HttpException ? exception.getResponse() : null;
+    const errorResponse: HttpExceptionResponse | null =
+      exception instanceof HttpException
+        ? (exception.getResponse() as HttpExceptionResponse)
+        : null;
 
-    const errorObject: any = {
+    // Build error response object
+    const errorObject: Record<string, any> = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
@@ -47,26 +63,50 @@ export class AllExceptionsFilter implements ExceptionFilter {
       requestId,
     };
 
-    if (typeof errorResponse === 'object' && errorResponse !== null) {
-      errorObject.error = (errorResponse as any).error || 'Error';
+    // Add additional error details if available
+    if (
+      errorResponse &&
+      typeof errorResponse === 'object' &&
+      errorResponse !== null
+    ) {
+      if (errorResponse.error) {
+        errorObject.error = errorResponse.error;
+      }
 
-      if (Array.isArray((errorResponse as any).message)) {
-        errorObject.message = (errorResponse as any).message;
+      if (Array.isArray(errorResponse.message)) {
+        errorObject.message = errorResponse.message;
+      } else if (errorResponse.message && errorResponse.message !== message) {
+        errorObject.message = errorResponse.message;
       }
     }
 
-    // ✅ Structured Winston logging
-    if (status >= 500 && exception instanceof Error) {
-      this.logger.error({
-        level: 'error',
-        message: `[${requestId}] ${request.method} ${request.url}`,
-        stack: exception.stack,
-        statusCode: status,
-        requestId,
-        method: request.method,
-        path: request.url,
-      });
+    // Structured Winston logging based on error severity
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      // Server errors (500+)
+      if (exception instanceof Error) {
+        this.logger.error({
+          level: 'error',
+          message: `[${requestId}] ${request.method} ${request.url}`,
+          stack: exception.stack,
+          statusCode: status,
+          requestId,
+          method: request.method,
+          path: request.url,
+          error: exception.message,
+        });
+      } else {
+        this.logger.error({
+          level: 'error',
+          message: `[${requestId}] ${request.method} ${request.url}`,
+          statusCode: status,
+          requestId,
+          method: request.method,
+          path: request.url,
+          error: String(exception),
+        });
+      }
     } else {
+      // Client errors (400-499)
       this.logger.warn({
         level: 'warn',
         message: `[${requestId}] ${request.method} ${request.url} - ${message}`,
@@ -74,6 +114,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         requestId,
         method: request.method,
         path: request.url,
+        error: message,
       });
     }
 

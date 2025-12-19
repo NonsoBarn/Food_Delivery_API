@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   ExceptionFilter,
   Catch,
@@ -13,6 +10,22 @@ import { QueryFailedError } from 'typeorm';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { Logger as WinstonLogger } from 'winston';
 
+// Define PostgreSQL error interface
+interface PostgreSqlError extends Error {
+  code?: string;
+  detail?: string;
+  constraint?: string;
+  table?: string;
+  column?: string;
+}
+
+// Extend Express Request type for request.id
+declare module 'express' {
+  interface Request {
+    id?: string;
+  }
+}
+
 @Catch(QueryFailedError)
 export class TypeOrmExceptionFilter implements ExceptionFilter {
   constructor(
@@ -24,13 +37,14 @@ export class TypeOrmExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-    const requestId = (request as any).id || 'unknown';
+    const requestId = request.id || 'unknown';
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Database error occurred';
 
-    const pgError = exception as any;
+    const pgError = exception as unknown as PostgreSqlError;
 
+    // Handle specific PostgreSQL error codes
     switch (pgError.code) {
       case '23505': // unique_violation
         status = HttpStatus.CONFLICT;
@@ -48,11 +62,11 @@ export class TypeOrmExceptionFilter implements ExceptionFilter {
         break;
 
       default:
-        // fallthrough — handled below
+        // Handle other error codes or fall through
         break;
     }
 
-    // ✅ Structured Winston logging
+    // Structured Winston logging
     this.logger.error({
       level: 'error',
       message: `[${requestId}] DB error on ${request.method} ${request.url}`,
@@ -74,12 +88,20 @@ export class TypeOrmExceptionFilter implements ExceptionFilter {
     });
   }
 
-  private extractUniqueViolationMessage(error: any): string {
+  private extractUniqueViolationMessage(error: PostgreSqlError): string {
     const detail = error.detail || '';
+
+    // Extract column name from PostgreSQL error detail
     const match = detail.match(/Key \((\w+)\)/);
 
-    if (match) {
-      return `${match[1]} already exists`;
+    if (match && match[1]) {
+      const column = match[1];
+      return `${column} already exists`;
+    }
+
+    // Check constraint name for more context
+    if (error.constraint) {
+      return `Constraint violation: ${error.constraint}`;
     }
 
     return 'Duplicate entry found';

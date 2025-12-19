@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-base-to-string */
-/* eslint-disable @typescript-eslint/restrict-template-expressions */
 import { WinstonModuleOptions } from 'nest-winston';
 import * as winston from 'winston';
 
@@ -10,13 +8,27 @@ export const loggerConfig: WinstonModuleOptions = {
       format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.colorize(),
-        winston.format.printf(
-          ({ timestamp, level, message, context, ...meta }) => {
-            return `${timestamp} [${context || 'Application'}] ${level}: ${message} ${
-              Object.keys(meta).length ? JSON.stringify(meta, null, 2) : ''
-            }`;
-          },
-        ),
+
+        winston.format.printf((info: winston.Logform.TransformableInfo) => {
+          const { timestamp, level, message, context, ...meta } = info;
+
+          const timestampStr =
+            typeof timestamp === 'string' ? timestamp : String(timestamp);
+
+          const levelStr = typeof level === 'string' ? level : String(level);
+
+          const contextStr =
+            typeof context === 'string' ? context : 'Application';
+
+          const messageStr =
+            typeof message === 'string' ? message : JSON.stringify(message);
+
+          const metaStr = Object.keys(meta).length
+            ? JSON.stringify(meta, null, 2)
+            : '';
+
+          return `${timestampStr} [${contextStr}] ${levelStr}: ${messageStr} ${metaStr}`.trim();
+        }),
       ),
     }),
 

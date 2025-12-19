@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/require-await */
 import {
   Controller,
   Post,
@@ -18,6 +15,8 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { API_VERSIONS } from '../common/constants/api-versions';
+import { User } from 'src/users/entities/user.entity';
+import { UserResponseDto } from 'src/users/dto/user-response.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -44,7 +43,7 @@ export class AuthController {
   @Get('me')
   @Version(API_VERSIONS.V1)
   @UseGuards(JwtAuthGuard)
-  async getProfile(@CurrentUser() user: any) {
+  getProfile(@CurrentUser() user: User): UserResponseDto {
     return {
       id: user.id,
       email: user.email,
@@ -55,7 +54,7 @@ export class AuthController {
   @Get('test-protected')
   @Version(API_VERSIONS.V1)
   @UseGuards(JwtAuthGuard)
-  testProtected(@CurrentUser() user: any) {
+  testProtected(@CurrentUser() user: User) {
     return {
       message: 'This is a protected route!',
       user: user,
