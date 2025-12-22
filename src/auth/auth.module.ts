@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import jwtConfig from '../config/jwt.config';
+import { RbacTestController } from './rbac-test.controller';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import jwtConfig from '../config/jwt.config';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, RbacTestController],
   providers: [AuthService, JwtStrategy],
   exports: [AuthService, JwtStrategy, PassportModule],
 })

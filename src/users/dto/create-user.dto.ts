@@ -7,13 +7,7 @@ import {
   IsEnum,
   IsOptional,
 } from 'class-validator';
-
-export enum UserRole {
-  CUSTOMER = 'customer',
-  VENDOR = 'vendor',
-  RIDER = 'rider',
-  ADMIN = 'admin',
-}
+import { UserRole } from 'src/common/enums/user-role.enum';
 
 export class CreateUserDto {
   @IsEmail({}, { message: 'Please provide a valid email address' })
