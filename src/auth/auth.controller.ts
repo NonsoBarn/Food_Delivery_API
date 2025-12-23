@@ -15,8 +15,8 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { API_VERSIONS } from '../common/constants/api-versions';
-import { User } from 'src/users/entities/user.entity';
 import { UserResponseDto } from 'src/users/dto/user-response.dto';
+import type { RequestUser } from './interfaces/jwt-payload.interface';
 
 @Controller('auth')
 export class AuthController {
@@ -43,7 +43,7 @@ export class AuthController {
   @Get('me')
   @Version(API_VERSIONS.V1)
   @UseGuards(JwtAuthGuard)
-  getProfile(@CurrentUser() user: User): UserResponseDto {
+  getProfile(@CurrentUser() user: RequestUser): UserResponseDto {
     return {
       id: user.id,
       email: user.email,
@@ -54,7 +54,7 @@ export class AuthController {
   @Get('test-protected')
   @Version(API_VERSIONS.V1)
   @UseGuards(JwtAuthGuard)
-  testProtected(@CurrentUser() user: User) {
+  testProtected(@CurrentUser() user: RequestUser) {
     return {
       message: 'This is a protected route!',
       user: user,

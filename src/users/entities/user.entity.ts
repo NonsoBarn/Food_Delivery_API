@@ -6,9 +6,13 @@ import {
   UpdateDateColumn,
   BeforeInsert,
   BeforeUpdate,
+  OneToOne,
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from 'src/common/enums/user-role.enum';
+import { CustomerProfile } from './customer-profile.entity';
+import { VendorProfile } from './vendor-profile.entity';
+import { RiderProfile } from './rider-profile.entity';
 
 @Entity('users') // Table name
 export class User {
@@ -27,6 +31,25 @@ export class User {
     default: UserRole.CUSTOMER,
   })
   role: UserRole;
+
+  // Profile relationships
+  @OneToOne(() => CustomerProfile, (profile) => profile.user, {
+    eager: false, // Don't load automatically
+    cascade: true, // Save profile when saving user
+  })
+  customerProfile?: CustomerProfile;
+
+  @OneToOne(() => VendorProfile, (profile) => profile.user, {
+    eager: false,
+    cascade: true,
+  })
+  vendorProfile?: VendorProfile;
+
+  @OneToOne(() => RiderProfile, (profile) => profile.user, {
+    eager: false,
+    cascade: true,
+  })
+  riderProfile?: RiderProfile;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { UserRole } from '../enums/user-role.enum';
-import { User } from 'src/users/entities/user.entity';
+import { RequestUser } from 'src/auth/interfaces/jwt-payload.interface';
 
 /**
  * ResourceOwnerGuard
@@ -32,7 +32,7 @@ import { User } from 'src/users/entities/user.entity';
  * Typed request interface for ResourceOwnerGuard
  */
 interface RequestWithUserAndOwner extends Request {
-  user: User;
+  user: RequestUser;
   params: { userId?: string };
   body: { userId?: string };
 }
