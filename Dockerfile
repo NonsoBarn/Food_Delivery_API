@@ -83,4 +83,4 @@ COPY --from=builder /app/tsconfig*.json ./
 EXPOSE 3000
 
 # Command to run the app
-CMD ["node", "dist/main"]
+CMD ["npm", "run", "start:dev"]

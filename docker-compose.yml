@@ -33,10 +33,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: food_delivery_app
     restart: unless-stopped
     ports:
       - '3000:3000'
+    env_file:
+      - .env.development
     environment:
       NODE_ENV: development
       PORT: 3000

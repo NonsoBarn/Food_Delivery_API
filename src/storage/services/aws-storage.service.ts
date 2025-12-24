@@ -76,7 +76,6 @@ export class AwsStorageService implements IStorageService {
         Key: key,
         Body: file.buffer,
         ContentType: file.mimetype,
-        ACL: options?.isPublic ? 'public-read' : 'private',
         Metadata: options?.metadata || {},
       });
 
