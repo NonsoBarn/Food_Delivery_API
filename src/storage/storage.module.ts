@@ -6,6 +6,8 @@ import cloudinaryConfig from './config/cloudinary.config';
 import digitaloceanConfig from './config/digitalocean.config';
 import storageConfig from './config/storage.config';
 import { StorageTestController } from './storage-test.controller';
+import { CloudinaryStorageService } from './services/cloudinary-storage.service';
+import { CloudinaryTestController } from './cloudinary-test.controller';
 
 @Module({
   imports: [
@@ -14,8 +16,8 @@ import { StorageTestController } from './storage-test.controller';
     ConfigModule.forFeature(digitaloceanConfig),
     ConfigModule.forFeature(storageConfig),
   ],
-  controllers: [StorageTestController],
-  providers: [AwsStorageService],
-  exports: [AwsStorageService],
+  controllers: [StorageTestController, CloudinaryTestController],
+  providers: [AwsStorageService, CloudinaryStorageService],
+  exports: [AwsStorageService, CloudinaryStorageService],
 })
 export class StorageModule {}
