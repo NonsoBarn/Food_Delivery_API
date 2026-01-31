@@ -5,17 +5,20 @@ import { ProductsController } from './products.controller';
 import { Product } from './entities/product.entity';
 import { ProductImage } from './entities/product-image.entity';
 import { CategoriesModule } from './categories.module';
+import { StorageModule } from 'src/storage/storage.module';
+import { ProductImagesService } from './product-images.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Product, ProductImage]),
     CategoriesModule, // Import to access CategoriesService
+    StorageModule,
   ],
 
   controllers: [ProductsController],
 
-  providers: [ProductsService],
+  providers: [ProductsService, ProductImagesService],
 
-  exports: [ProductsService],
+  exports: [ProductsService, ProductImagesService],
 })
 export class ProductsModule {}

@@ -8,6 +8,7 @@ import storageConfig from './config/storage.config';
 import { StorageTestController } from './storage-test.controller';
 import { CloudinaryStorageService } from './services/cloudinary-storage.service';
 import { CloudinaryTestController } from './cloudinary-test.controller';
+import { StorageFactoryService } from './storage-factory.service';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { CloudinaryTestController } from './cloudinary-test.controller';
     ConfigModule.forFeature(storageConfig),
   ],
   controllers: [StorageTestController, CloudinaryTestController],
-  providers: [AwsStorageService, CloudinaryStorageService],
-  exports: [AwsStorageService, CloudinaryStorageService],
+  providers: [AwsStorageService, CloudinaryStorageService, StorageFactoryService],
+  exports: [AwsStorageService, CloudinaryStorageService, StorageFactoryService],
 })
 export class StorageModule {}
