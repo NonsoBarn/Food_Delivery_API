@@ -21,6 +21,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { loggerConfig } from './config/logger.config';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { CategoriesModule } from './products/categories.module';
 import { StorageModule } from './storage/storage.module';
 
 @Module({
@@ -39,6 +40,7 @@ import { StorageModule } from './storage/storage.module';
 
     UsersModule,
     AuthModule,
+    CategoriesModule,
 
     // Storage
     StorageModule,
