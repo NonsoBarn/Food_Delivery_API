@@ -8,6 +8,7 @@ import {
   OneToMany,
   JoinColumn,
 } from 'typeorm';
+import { Product } from '../../products/entities/product.entity';
 
 /**
  * Category Entity
@@ -114,11 +115,10 @@ export class Category {
 
   /**
    * Products in this category
-   * We'll add this relationship in Phase 4.3 when we create Product entity
-   * For now, it's a placeholder comment
+   * One Category can have many Products
    */
-  // @OneToMany(() => Product, (product) => product.category)
-  // products: Product[];
+  @OneToMany(() => Product, (product) => product.category)
+  products: Product[];
 
   /**
    * Audit Timestamps

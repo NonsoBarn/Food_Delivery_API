@@ -27,11 +27,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found');
     }
 
-    // This object will be attached to request.user
-    return {
+    // Build response with proper typing
+    const response: RequestUser = {
       id: user.id,
       email: user.email,
       role: user.role,
     };
+
+    // Add vendor profile if exists (for vendors)
+    if (user.vendorProfile) {
+      response.vendorProfile = {
+        id: user.vendorProfile.id,
+        businessName: user.vendorProfile.businessName,
+        status: user.vendorProfile.status,
+      };
+    }
+
+    // This object will be attached to request.user
+    return response;
   }
 }

@@ -23,6 +23,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './products/categories.module';
 import { StorageModule } from './storage/storage.module';
+import { ProductsModule } from './products/products.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { StorageModule } from './storage/storage.module';
     UsersModule,
     AuthModule,
     CategoriesModule,
+    ProductsModule,
 
     // Storage
     StorageModule,

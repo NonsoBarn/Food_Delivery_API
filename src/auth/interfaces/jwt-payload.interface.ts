@@ -1,4 +1,6 @@
 import { UserRole } from 'src/common/enums/user-role.enum';
+import { VendorStatus } from 'src/users/entities/vendor-profile.entity';
+
 export interface JwtPayload {
   sub: string; // Subject (user ID)
   email: string; // User email
@@ -12,4 +14,9 @@ export interface RequestUser {
   id: string;
   email: string;
   role: UserRole;
+  vendorProfile?: {
+    id: string;
+    businessName: string;
+    status: VendorStatus;
+  };
 }

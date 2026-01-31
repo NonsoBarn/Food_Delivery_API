@@ -6,8 +6,10 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { User } from './user.entity';
+import { Product } from 'src/products/entities/product.entity';
 
 export enum VendorStatus {
   PENDING = 'pending',
@@ -100,6 +102,13 @@ export class VendorProfile {
   })
   @JoinColumn({ name: 'userId' })
   user: User;
+
+  /**
+   * Products sold by this vendor
+   * One Vendor can have many Products
+   */
+  @OneToMany(() => Product, (product) => product.vendor)
+  products: Product[];
 
   @Column()
   userId: string;
