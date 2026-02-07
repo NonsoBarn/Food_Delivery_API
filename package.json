@@ -27,7 +27,7 @@
     "migration:run": "npm run typeorm -- migration:run -d ormconfig.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d ormconfig.ts",
     "migration:create": "npm run typeorm -- migration:create",
-    "seed": "ts-node src/database/seeders/index.ts",
+    "seed": "docker exec -it food-delivery-api-app-1 yarn seed",
     "db:psql": "docker exec -it food_delivery_db psql -U postgres -d food_delivery_dev"
   },
   "dependencies": {
@@ -48,6 +48,7 @@
     "class-validator": "^0.14.3",
     "cloudinary": "^2.8.0",
     "dotenv": "^17.2.3",
+    "ioredis": "^5.9.2",
     "mime-types": "^3.0.2",
     "multer": "^2.0.2",
     "nest-winston": "^1.10.2",

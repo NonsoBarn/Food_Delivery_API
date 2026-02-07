@@ -279,7 +279,7 @@ export class ProductsController {
   async deleteImage(
     @Param('productId') productId: string,
     @Param('imageId') imageId: string,
-    @CurrentUser() user: any,
+    @CurrentUser() user: User,
   ) {
     await this.productImagesService.deleteImage(
       productId,
