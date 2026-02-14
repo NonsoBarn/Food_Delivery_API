@@ -43,6 +43,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       };
     }
 
+    // Add customer profile if exists (for customers)
+    // Needed by the order system to know the customer's ID and default address
+    if (user.customerProfile) {
+      response.customerProfile = {
+        id: user.customerProfile.id,
+        deliveryAddress: user.customerProfile.deliveryAddress,
+        city: user.customerProfile.city,
+        state: user.customerProfile.state,
+        postalCode: user.customerProfile.postalCode,
+        latitude: user.customerProfile.latitude,
+        longitude: user.customerProfile.longitude,
+      };
+    }
+
     // This object will be attached to request.user
     return response;
   }

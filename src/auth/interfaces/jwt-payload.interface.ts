@@ -19,4 +19,13 @@ export interface RequestUser {
     businessName: string;
     status: VendorStatus;
   };
+  customerProfile?: {
+    id: string;
+    deliveryAddress: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    latitude: number;
+    longitude: number;
+  };
 }
