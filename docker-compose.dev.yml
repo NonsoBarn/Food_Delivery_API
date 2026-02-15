@@ -3,8 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: builder # Stop at builder stage
-    command: npm run start:dev # Hot reload
+    command: yarn start:dev # Hot reload
     volumes:
       - ./src:/app/src
       - ./package.json:/app/package.json
