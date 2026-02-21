@@ -41,6 +41,7 @@ import {
 } from 'typeorm';
 import { CustomerProfile } from '../../users/entities/customer-profile.entity';
 import { VendorProfile } from '../../users/entities/vendor-profile.entity';
+import { RiderProfile } from '../../users/entities/rider-profile.entity';
 import { OrderItem } from './order-item.entity';
 import { OrderStatus } from '../enums/order-status.enum';
 import { PaymentMethod } from '../enums/payment-method.enum';
@@ -51,6 +52,7 @@ import { PaymentStatus } from '../enums/payment-status.enum';
 @Index(['vendorId', 'status'])
 @Index(['orderGroupId'])
 @Index(['status', 'createdAt'])
+@Index(['riderId', 'status'])
 export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -109,6 +111,23 @@ export class Order {
 
   @Column({ type: 'uuid' })
   vendorId: string;
+
+  /**
+   * Rider delivering this order.
+   *
+   * This is a SHORTCUT field — the authoritative rider↔order link lives
+   * in the Delivery entity. But having riderId here lets us quickly answer
+   * "who's delivering my order?" without joining through deliveries.
+   *
+   * Set when a rider ACCEPTS the delivery (not when assigned, since they
+   * might reject). Nullable because orders start without a rider.
+   */
+  @ManyToOne(() => RiderProfile, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'riderId' })
+  rider: RiderProfile;
+
+  @Column({ type: 'uuid', nullable: true })
+  riderId: string;
 
   /**
    * Line items in this order.

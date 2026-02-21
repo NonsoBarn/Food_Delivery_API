@@ -1,5 +1,9 @@
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { VendorStatus } from 'src/users/entities/vendor-profile.entity';
+import {
+  RiderStatus,
+  AvailabilityStatus,
+} from 'src/users/entities/rider-profile.entity';
 
 export interface JwtPayload {
   sub: string; // Subject (user ID)
@@ -27,5 +31,10 @@ export interface RequestUser {
     postalCode: string;
     latitude: number;
     longitude: number;
+  };
+  riderProfile?: {
+    id: string;
+    status: RiderStatus;
+    availabilityStatus: AvailabilityStatus;
   };
 }

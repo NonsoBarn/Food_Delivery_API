@@ -232,6 +232,12 @@ export class OrdersController {
           'You can only view orders for your products',
         );
       }
+    } else if (reqUser.role === UserRole.RIDER) {
+      if (order.riderId !== reqUser.riderProfile?.id) {
+        throw new ForbiddenException(
+          'You can only view orders assigned to you',
+        );
+      }
     }
     // Admin can see any order
 

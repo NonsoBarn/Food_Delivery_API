@@ -57,6 +57,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       };
     }
 
+    // Add rider profile if exists (for riders)
+    // Needed by the delivery system to know the rider's profile ID and status
+    if (user.riderProfile) {
+      response.riderProfile = {
+        id: user.riderProfile.id,
+        status: user.riderProfile.status,
+        availabilityStatus: user.riderProfile.availabilityStatus,
+      };
+    }
+
     // This object will be attached to request.user
     return response;
   }
