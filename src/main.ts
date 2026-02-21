@@ -1,6 +1,8 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import { SocketIoAdapter } from './notifications/adapters/socket-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -26,11 +28,37 @@ async function bootstrap() {
     }),
   );
 
+  /**
+   * Custom Socket.io adapter with Redis pub/sub.
+   *
+   * KEY LEARNING: Why configure the adapter BEFORE app.listen()?
+   * ==============================================================
+   * NestJS mounts WebSocket gateways when the application starts listening.
+   * If we add the adapter after listen(), the gateways are already mounted
+   * with the DEFAULT adapter (no Redis, limited CORS).
+   *
+   * Order matters:
+   * 1. Create app
+   * 2. Configure adapter  ← here, before listen
+   * 3. Listen
+   *
+   * The adapter's connectToRedis() is async — it creates two ioredis
+   * connections and waits for them to be ready before the app starts
+   * accepting WebSocket connections.
+   */
+  const configService = app.get(ConfigService);
+  const socketAdapter = new SocketIoAdapter(app, configService);
+  await socketAdapter.connectToRedis();
+  app.useWebSocketAdapter(socketAdapter);
+
   // Get port from environment or default to 3000
   const port = process.env.PORT || 3000;
 
   await app.listen(port);
   console.log(`🚀 Application is running on: http://localhost:${port}`);
   console.log(`📡 API v1: http://localhost:${port}/api/v1`);
+  console.log(
+    `🔌 WebSocket: ws://localhost:${port}/socket.io/notifications`,
+  );
 }
 bootstrap();

@@ -34,6 +34,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { Product } from '../products/entities/product.entity';
@@ -50,6 +51,11 @@ import {
   canRoleTransition,
   getValidNextStatuses,
 } from './order-status-machine';
+import {
+  NOTIFICATION_EVENTS,
+  OrderCreatedEvent,
+  OrderStatusUpdatedEvent,
+} from '../notifications/events/notification-events';
 
 @Injectable()
 export class OrdersService {
@@ -78,6 +84,24 @@ export class OrdersService {
     private readonly dataSource: DataSource,
 
     private readonly cartService: CartService,
+
+    /**
+     * EventEmitter2 is the injectable event bus from @nestjs/event-emitter.
+     *
+     * KEY LEARNING: EventEmitter2 vs Node's built-in EventEmitter
+     * =============================================================
+     * Node.js has EventEmitter built in, but it's not injectable via NestJS DI.
+     * EventEmitter2 is a wrapper that:
+     * - Is injectable (registered globally by EventEmitterModule.forRoot())
+     * - Supports wildcard listeners ('order.*' catches all order events)
+     * - Supports async handlers
+     * - Supports namespaced events with the '.' delimiter
+     *
+     * We use this.eventEmitter.emit() to fire events.
+     * The @OnEvent() decorators in listeners pick them up.
+     * The emitter and listeners never import each other directly.
+     */
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // ==================== ORDER CREATION ====================
@@ -120,10 +144,7 @@ export class OrdersService {
    * @param dto - Payment method, optional address override, notes
    * @returns Array of created orders (one per vendor)
    */
-  async createOrder(
-    user: RequestUser,
-    dto: CreateOrderDto,
-  ): Promise<Order[]> {
+  async createOrder(user: RequestUser, dto: CreateOrderDto): Promise<Order[]> {
     // ---- Pre-checks ----
 
     if (!user.customerProfile) {
@@ -135,7 +156,8 @@ export class OrdersService {
     const customerProfile = user.customerProfile;
 
     // Determine delivery address (DTO override or profile default)
-    const deliveryAddress = dto.deliveryAddress || customerProfile.deliveryAddress;
+    const deliveryAddress =
+      dto.deliveryAddress || customerProfile.deliveryAddress;
 
     if (!deliveryAddress) {
       throw new BadRequestException(
@@ -171,125 +193,123 @@ export class OrdersService {
     // Everything inside this callback is wrapped in a transaction.
     // The `manager` parameter is a special EntityManager bound to
     // a single database connection with a transaction started.
-    const createdOrders = await this.dataSource.transaction(
-      async (manager) => {
-        const orders: Order[] = [];
+    const createdOrders = await this.dataSource.transaction(async (manager) => {
+      const orders: Order[] = [];
 
-        // Iterate over each vendor group in the cart
-        // e.g., { "vendor-1": { items: [...], subtotal: 25.99 }, "vendor-2": { ... } }
-        for (const [vendorId, vendorGroup] of Object.entries(
-          cart.itemsByVendor,
-        )) {
-          // ---- 3a: Generate human-readable order number ----
-          const orderNumber = this.generateOrderNumber();
+      // Iterate over each vendor group in the cart
+      // e.g., { "vendor-1": { items: [...], subtotal: 25.99 }, "vendor-2": { ... } }
+      for (const [vendorId, vendorGroup] of Object.entries(
+        cart.itemsByVendor,
+      )) {
+        // ---- 3a: Generate human-readable order number ----
+        const orderNumber = this.generateOrderNumber();
 
-          // ---- 3b: Create Order entity ----
-          const order = manager.create(Order, {
-            orderNumber,
-            orderGroupId,
-            customerId: customerProfile.id,
-            vendorId,
-            deliveryAddress,
-            deliveryCity: customerProfile.city,
-            deliveryState: customerProfile.state,
-            deliveryPostalCode: customerProfile.postalCode,
-            deliveryLatitude: customerProfile.latitude,
-            deliveryLongitude: customerProfile.longitude,
-            subtotal: vendorGroup.subtotal,
-            tax: 0, // Future: calculate tax
-            deliveryFee: 0, // Future: calculate delivery fee
-            total: vendorGroup.subtotal, // subtotal + tax + deliveryFee
-            paymentMethod: dto.paymentMethod,
-            status: OrderStatus.PENDING,
-            paymentStatus: PaymentStatus.PENDING,
-            customerNotes: dto.customerNotes,
+        // ---- 3b: Create Order entity ----
+        const order = manager.create(Order, {
+          orderNumber,
+          orderGroupId,
+          customerId: customerProfile.id,
+          vendorId,
+          deliveryAddress,
+          deliveryCity: customerProfile.city,
+          deliveryState: customerProfile.state,
+          deliveryPostalCode: customerProfile.postalCode,
+          deliveryLatitude: customerProfile.latitude,
+          deliveryLongitude: customerProfile.longitude,
+          subtotal: vendorGroup.subtotal,
+          tax: 0, // Future: calculate tax
+          deliveryFee: 0, // Future: calculate delivery fee
+          total: vendorGroup.subtotal, // subtotal + tax + deliveryFee
+          paymentMethod: dto.paymentMethod,
+          status: OrderStatus.PENDING,
+          paymentStatus: PaymentStatus.PENDING,
+          customerNotes: dto.customerNotes,
+        });
+
+        // Save the order to get its generated ID
+        const savedOrder = await manager.save(Order, order);
+
+        // ---- 3c: Create OrderItems ----
+        const orderItems: OrderItem[] = [];
+
+        for (const cartItem of vendorGroup.items) {
+          const orderItem = manager.create(OrderItem, {
+            orderId: savedOrder.id,
+            productId: cartItem.productId,
+            productName: cartItem.name,
+            productSlug: cartItem.slug,
+            productImageUrl: cartItem.imageUrl ?? undefined,
+            quantity: cartItem.quantity,
+            unitPrice: cartItem.price,
+            subtotal: cartItem.price * cartItem.quantity,
           });
 
-          // Save the order to get its generated ID
-          const savedOrder = await manager.save(Order, order);
+          orderItems.push(orderItem);
 
-          // ---- 3c: Create OrderItems ----
-          const orderItems: OrderItem[] = [];
+          // ---- 3d: Decrement Stock ----
+          // This is where pessimistic locking protects us from race conditions.
+          //
+          // Scenario without locking:
+          //   Customer A reads stock=1, Customer B reads stock=1
+          //   Both think they can buy it
+          //   Customer A sets stock=0, Customer B sets stock=0
+          //   Two orders placed for ONE item! (oversold)
+          //
+          // With pessimistic_write lock:
+          //   Customer A locks the row, reads stock=1, sets stock=0
+          //   Customer B waits for the lock, reads stock=0, FAILS
+          //   Only one order goes through. Correct!
+          const product = await manager.findOne(Product, {
+            where: { id: cartItem.productId },
+            lock: { mode: 'pessimistic_write' },
+          });
 
-          for (const cartItem of vendorGroup.items) {
-            const orderItem = manager.create(OrderItem, {
-              orderId: savedOrder.id,
-              productId: cartItem.productId,
-              productName: cartItem.name,
-              productSlug: cartItem.slug,
-              productImageUrl: cartItem.imageUrl ?? undefined,
-              quantity: cartItem.quantity,
-              unitPrice: cartItem.price,
-              subtotal: cartItem.price * cartItem.quantity,
-            });
-
-            orderItems.push(orderItem);
-
-            // ---- 3d: Decrement Stock ----
-            // This is where pessimistic locking protects us from race conditions.
-            //
-            // Scenario without locking:
-            //   Customer A reads stock=1, Customer B reads stock=1
-            //   Both think they can buy it
-            //   Customer A sets stock=0, Customer B sets stock=0
-            //   Two orders placed for ONE item! (oversold)
-            //
-            // With pessimistic_write lock:
-            //   Customer A locks the row, reads stock=1, sets stock=0
-            //   Customer B waits for the lock, reads stock=0, FAILS
-            //   Only one order goes through. Correct!
-            const product = await manager.findOne(Product, {
-              where: { id: cartItem.productId },
-              lock: { mode: 'pessimistic_write' },
-            });
-
-            if (!product) {
-              throw new BadRequestException(
-                `Product "${cartItem.name}" is no longer available`,
-              );
-            }
-
-            if (product.status !== ProductStatus.PUBLISHED) {
-              throw new BadRequestException(
-                `Product "${product.name}" is no longer available for purchase`,
-              );
-            }
-
-            // Only decrement if stock is tracked (stock !== -1)
-            if (product.stock !== -1) {
-              if (product.stock < cartItem.quantity) {
-                throw new BadRequestException(
-                  `Insufficient stock for "${product.name}". Available: ${product.stock}, Requested: ${cartItem.quantity}`,
-                );
-              }
-
-              product.stock -= cartItem.quantity;
-
-              // Auto-mark as out of stock if depleted
-              if (product.stock === 0) {
-                product.status = ProductStatus.OUT_OF_STOCK;
-              }
-            }
-
-            // Increment order count for analytics
-            product.orderCount = (product.orderCount || 0) + 1;
-
-            await manager.save(Product, product);
+          if (!product) {
+            throw new BadRequestException(
+              `Product "${cartItem.name}" is no longer available`,
+            );
           }
 
-          // Save all order items at once (batch save)
-          await manager.save(OrderItem, orderItems);
+          if (product.status !== ProductStatus.PUBLISHED) {
+            throw new BadRequestException(
+              `Product "${product.name}" is no longer available for purchase`,
+            );
+          }
 
-          // Attach items to the order for the response
-          savedOrder.items = orderItems;
-          orders.push(savedOrder);
+          // Only decrement if stock is tracked (stock !== -1)
+          if (product.stock !== -1) {
+            if (product.stock < cartItem.quantity) {
+              throw new BadRequestException(
+                `Insufficient stock for "${product.name}". Available: ${product.stock}, Requested: ${cartItem.quantity}`,
+              );
+            }
+
+            product.stock -= cartItem.quantity;
+
+            // Auto-mark as out of stock if depleted
+            if (product.stock === 0) {
+              product.status = ProductStatus.OUT_OF_STOCK;
+            }
+          }
+
+          // Increment order count for analytics
+          product.orderCount = (product.orderCount || 0) + 1;
+
+          await manager.save(Product, product);
         }
 
-        // If we reach here, ALL operations succeeded.
-        // The transaction will COMMIT automatically when the callback returns.
-        return orders;
-      },
-    );
+        // Save all order items at once (batch save)
+        await manager.save(OrderItem, orderItems);
+
+        // Attach items to the order for the response
+        savedOrder.items = orderItems;
+        orders.push(savedOrder);
+      }
+
+      // If we reach here, ALL operations succeeded.
+      // The transaction will COMMIT automatically when the callback returns.
+      return orders;
+    });
 
     // ---- Step 5: Clear Cart ----
     // IMPORTANT: This happens OUTSIDE the transaction!
@@ -309,6 +329,35 @@ export class OrdersService {
     this.logger.log(
       `Created ${createdOrders.length} order(s) for customer ${customerProfile.id} (group: ${orderGroupId})`,
     );
+
+    /**
+     * Emit one notification per order (multi-vendor checkouts create multiple orders).
+     *
+     * KEY LEARNING: Emit AFTER the transaction, never inside it.
+     * ===========================================================
+     * We're now OUTSIDE the dataSource.transaction() callback.
+     * The PostgreSQL transaction has committed — orders exist in the DB.
+     * Only now is it safe to notify vendors via WebSocket.
+     *
+     * If we emitted inside the transaction and the transaction then rolled back,
+     * vendors would receive "new order!" notifications for orders that don't exist.
+     * That's a phantom notification — confusing and hard to debug.
+     *
+     * The rule: events are side effects. Side effects run AFTER the main operation succeeds.
+     */
+    for (const order of createdOrders) {
+      const event: OrderCreatedEvent = {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        orderGroupId: order.orderGroupId,
+        customerId: order.customerId,
+        vendorProfileId: order.vendorId,
+        total: Number(order.total),
+        itemCount: order.items?.length ?? 0,
+        createdAt: order.createdAt,
+      };
+      this.eventEmitter.emit(NOTIFICATION_EVENTS.ORDER_CREATED, event);
+    }
 
     return createdOrders;
   }
@@ -528,6 +577,37 @@ export class OrdersService {
 
     this.logger.log(
       `Order ${order.orderNumber} status changed: ${previousStatus} → ${dto.status} by ${user.role} (${user.id})`,
+    );
+
+    /**
+     * Notify all parties watching this order about the status change.
+     *
+     * KEY LEARNING: Emitting after a non-transactional save
+     * =======================================================
+     * updateOrderStatus() uses a simple `orderRepository.save()` (no explicit
+     * transaction here, except for CANCELLED which wraps restoreStock).
+     * The save() auto-commits — so at this point the DB is updated.
+     *
+     * We emit AFTER save() returns — the order is persisted before anyone
+     * is notified. Order matters.
+     */
+    const statusEvent: OrderStatusUpdatedEvent = {
+      orderId: savedOrder.id,
+      orderNumber: savedOrder.orderNumber,
+      previousStatus,
+      newStatus: dto.status,
+      customerId: savedOrder.customerId,
+      vendorProfileId: savedOrder.vendorId,
+      riderId: savedOrder.riderId ?? undefined,
+      updatedBy: user.role,
+      timestamp: new Date(),
+      estimatedPrepTimeMinutes:
+        savedOrder.estimatedPrepTimeMinutes ?? undefined,
+      cancellationReason: savedOrder.cancellationReason ?? undefined,
+    };
+    this.eventEmitter.emit(
+      NOTIFICATION_EVENTS.ORDER_STATUS_UPDATED,
+      statusEvent,
     );
 
     return savedOrder;

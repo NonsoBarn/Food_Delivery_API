@@ -42,6 +42,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Delivery } from '../entities/delivery.entity';
 import { Order } from '../../orders/entities/order.entity';
 import {
@@ -55,6 +56,11 @@ import { OrderStatus } from '../../orders/enums/order-status.enum';
 import { canTransition } from '../../orders/order-status-machine';
 import { StorageFactoryService } from '../../storage/storage-factory.service';
 import { RiderLocationService } from './rider-location.service';
+import {
+  NOTIFICATION_EVENTS,
+  DeliveryAssignedEvent,
+  DeliveryStatusUpdatedEvent,
+} from '../../notifications/events/notification-events';
 
 @Injectable()
 export class DeliveryService {
@@ -79,6 +85,13 @@ export class DeliveryService {
     private readonly storageFactory: StorageFactoryService,
 
     private readonly riderLocationService: RiderLocationService,
+
+    /**
+     * Same EventEmitter2 used in OrdersService.
+     * EventEmitterModule.forRoot() registers it globally — one shared bus
+     * for the entire application. Any service can inject it.
+     */
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // ==================== ASSIGNMENT ====================
@@ -198,18 +211,44 @@ export class DeliveryService {
     rider.availabilityStatus = AvailabilityStatus.BUSY;
 
     // Save both in a transaction
-    return this.dataSource.transaction(async (manager) => {
-      const savedDelivery = await manager
-        .getRepository(Delivery)
-        .save(delivery);
+    const savedDelivery = await this.dataSource.transaction(async (manager) => {
+      const saved = await manager.getRepository(Delivery).save(delivery);
       await manager.getRepository(RiderProfile).save(rider);
 
       this.logger.log(
         `Order ${orderId} assigned to rider ${riderId} (${assignmentType})`,
       );
 
-      return savedDelivery;
+      return saved;
     });
+
+    /**
+     * Notify the rider about their new assignment.
+     * Emitted AFTER the transaction — rider gets the notification only
+     * when the delivery record is safely in the database.
+     */
+    const assignedEvent: DeliveryAssignedEvent = {
+      deliveryId: savedDelivery.id,
+      orderId,
+      orderNumber: order.orderNumber ?? '',
+      riderId,
+      customerId: order.customerId,
+      vendorProfileId: order.vendorId,
+      assignmentType:
+        assignmentType === AssignmentType.MANUAL ? 'MANUAL' : 'AUTO',
+      dropoffLatitude: delivery.dropoffLatitude
+        ? Number(delivery.dropoffLatitude)
+        : undefined,
+      dropoffLongitude: delivery.dropoffLongitude
+        ? Number(delivery.dropoffLongitude)
+        : undefined,
+    };
+    this.eventEmitter.emit(
+      NOTIFICATION_EVENTS.DELIVERY_ASSIGNED,
+      assignedEvent,
+    );
+
+    return savedDelivery;
   }
 
   // ==================== RIDER ACTIONS ====================
@@ -235,11 +274,11 @@ export class DeliveryService {
       );
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const saved = await this.dataSource.transaction(async (manager) => {
       delivery.status = DeliveryStatus.ACCEPTED;
       delivery.acceptedAt = new Date();
 
-      const saved = await manager.save(Delivery, delivery);
+      const result = await manager.save(Delivery, delivery);
 
       // Set the shortcut riderId on the order
       await manager.update(Order, delivery.orderId, {
@@ -249,8 +288,21 @@ export class DeliveryService {
       this.logger.log(
         `Delivery ${deliveryId} accepted by rider ${riderProfileId}`,
       );
-      return saved;
+      return result;
     });
+
+    this.eventEmitter.emit(NOTIFICATION_EVENTS.DELIVERY_ACCEPTED, {
+      deliveryId,
+      orderId: saved.orderId,
+      riderId: riderProfileId,
+      customerId: '',
+      vendorProfileId: '',
+      previousStatus: DeliveryStatus.PENDING_ACCEPTANCE,
+      newStatus: DeliveryStatus.ACCEPTED,
+      timestamp: new Date(),
+    } satisfies DeliveryStatusUpdatedEvent);
+
+    return saved;
   }
 
   /**
@@ -282,11 +334,11 @@ export class DeliveryService {
       );
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const saved = await this.dataSource.transaction(async (manager) => {
       delivery.status = DeliveryStatus.REJECTED;
       delivery.rejectedAt = new Date();
 
-      const saved = await manager.save(Delivery, delivery);
+      const result = await manager.save(Delivery, delivery);
 
       // Set rider back to ONLINE
       await manager.update(RiderProfile, riderProfileId, {
@@ -296,8 +348,21 @@ export class DeliveryService {
       this.logger.log(
         `Delivery ${deliveryId} rejected by rider ${riderProfileId}`,
       );
-      return saved;
+      return result;
     });
+
+    this.eventEmitter.emit(NOTIFICATION_EVENTS.DELIVERY_REJECTED, {
+      deliveryId,
+      orderId: saved.orderId,
+      riderId: riderProfileId,
+      customerId: '',
+      vendorProfileId: '',
+      previousStatus: DeliveryStatus.PENDING_ACCEPTANCE,
+      newStatus: DeliveryStatus.REJECTED,
+      timestamp: new Date(),
+    } satisfies DeliveryStatusUpdatedEvent);
+
+    return saved;
   }
 
   /**
@@ -339,11 +404,11 @@ export class DeliveryService {
       );
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const saved = await this.dataSource.transaction(async (manager) => {
       // Update delivery
       delivery.status = DeliveryStatus.PICKED_UP;
       delivery.pickedUpAt = new Date();
-      const saved = await manager.save(Delivery, delivery);
+      const result = await manager.save(Delivery, delivery);
 
       // Sync order status
       order.status = OrderStatus.PICKED_UP;
@@ -353,8 +418,21 @@ export class DeliveryService {
       this.logger.log(
         `Delivery ${deliveryId}: food picked up by rider ${riderProfileId}`,
       );
-      return saved;
+      return result;
     });
+
+    this.eventEmitter.emit(NOTIFICATION_EVENTS.DELIVERY_PICKED_UP, {
+      deliveryId,
+      orderId: saved.orderId,
+      riderId: riderProfileId,
+      customerId: order.customerId,
+      vendorProfileId: order.vendorId,
+      previousStatus: DeliveryStatus.ACCEPTED,
+      newStatus: DeliveryStatus.PICKED_UP,
+      timestamp: new Date(),
+    } satisfies DeliveryStatusUpdatedEvent);
+
+    return saved;
   }
 
   /**
@@ -424,14 +502,14 @@ export class DeliveryService {
       }
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const saved = await this.dataSource.transaction(async (manager) => {
       // Update delivery
       delivery.status = DeliveryStatus.DELIVERED;
       delivery.deliveredAt = new Date();
       if (proofUrl) delivery.proofOfDeliveryUrl = proofUrl;
       if (notes) delivery.deliveryNotes = notes;
 
-      const saved = await manager.save(Delivery, delivery);
+      const result = await manager.save(Delivery, delivery);
 
       // Sync order status
       order.status = OrderStatus.DELIVERED;
@@ -452,8 +530,21 @@ export class DeliveryService {
       this.logger.log(
         `Delivery ${deliveryId} completed by rider ${riderProfileId}`,
       );
-      return saved;
+      return result;
     });
+
+    this.eventEmitter.emit(NOTIFICATION_EVENTS.DELIVERY_COMPLETED, {
+      deliveryId,
+      orderId: saved.orderId,
+      riderId: riderProfileId,
+      customerId: order.customerId,
+      vendorProfileId: order.vendorId,
+      previousStatus: DeliveryStatus.PICKED_UP,
+      newStatus: DeliveryStatus.DELIVERED,
+      timestamp: new Date(),
+    } satisfies DeliveryStatusUpdatedEvent);
+
+    return saved;
   }
 
   // ==================== ADMIN: CANCEL DELIVERY ====================
@@ -490,12 +581,14 @@ export class DeliveryService {
       );
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const previousStatus = delivery.status;
+
+    const saved = await this.dataSource.transaction(async (manager) => {
       delivery.status = DeliveryStatus.CANCELLED;
       delivery.cancelledAt = new Date();
       delivery.cancellationReason = reason;
 
-      const saved = await manager.save(Delivery, delivery);
+      const result = await manager.save(Delivery, delivery);
 
       // Set rider back to ONLINE
       await manager.update(RiderProfile, delivery.riderId, {
@@ -509,8 +602,22 @@ export class DeliveryService {
       this.logger.log(
         `Delivery ${deliveryId} cancelled by admin ${adminUserId}. Reason: ${reason}`,
       );
-      return saved;
+      return result;
     });
+
+    this.eventEmitter.emit(NOTIFICATION_EVENTS.DELIVERY_CANCELLED, {
+      deliveryId,
+      orderId: saved.orderId,
+      riderId: saved.riderId,
+      customerId: '',
+      vendorProfileId: '',
+      previousStatus,
+      newStatus: DeliveryStatus.CANCELLED,
+      reason,
+      timestamp: new Date(),
+    } satisfies DeliveryStatusUpdatedEvent);
+
+    return saved;
   }
 
   // ==================== AUTO-ASSIGNMENT ====================

@@ -2,6 +2,7 @@ import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { WinstonModule } from 'nest-winston';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -29,6 +30,7 @@ import { CartModule } from './cart/cart.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { DeliveryModule } from './delivery/delivery.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -36,6 +38,28 @@ import { DeliveryModule } from './delivery/delivery.module';
     ConfigModule.forRoot({
       isGlobal: true, // Makes ConfigModule available everywhere
       envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
+    }),
+
+    /**
+     * EventEmitterModule — global in-process pub/sub bus.
+     *
+     * KEY LEARNING: forRoot() options
+     * =================================
+     * wildcard: false — disable wildcard listeners ('order.*') for simplicity.
+     *   Enable later if you want a listener to catch ALL order events at once.
+     * delimiter: '.' — events named 'order.created', 'delivery.assigned', etc.
+     *   The dot is just a naming convention separator; no special routing.
+     * global: true — the EventEmitter2 token is available in every module
+     *   without needing to import EventEmitterModule explicitly.
+     *
+     * After this, any service can do:
+     *   constructor(private readonly eventEmitter: EventEmitter2) {}
+     *   this.eventEmitter.emit('order.created', payload);
+     */
+    EventEmitterModule.forRoot({
+      wildcard: false,
+      delimiter: '.',
+      global: true,
     }),
 
     // Logging
@@ -53,6 +77,7 @@ import { DeliveryModule } from './delivery/delivery.module';
     OrdersModule,
     PaymentsModule,
     DeliveryModule,
+    NotificationsModule,
 
     // Storage
     StorageModule,
