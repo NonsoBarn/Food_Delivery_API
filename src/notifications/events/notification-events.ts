@@ -44,6 +44,9 @@ import { UserRole } from '../../common/enums/user-role.enum';
  * If you mistype the string 'order.crated' nothing catches it.
  */
 export const NOTIFICATION_EVENTS = {
+  // User lifecycle events
+  USER_REGISTERED: 'user.registered',
+
   // Order lifecycle events
   ORDER_CREATED: 'order.created',
   ORDER_STATUS_UPDATED: 'order.status.updated',
@@ -56,6 +59,25 @@ export const NOTIFICATION_EVENTS = {
   DELIVERY_COMPLETED: 'delivery.completed',
   DELIVERY_CANCELLED: 'delivery.cancelled',
 } as const;
+
+// ==================== USER EVENT PAYLOADS ====================
+
+/**
+ * Fired once after a new user successfully registers.
+ *
+ * KEY LEARNING: Why emit this here and not inside create()?
+ * =========================================================
+ * The event is emitted AFTER repository.save() returns.
+ * If save() throws (e.g. duplicate email), the event never fires
+ * and no welcome email is queued. Correct order: DB first, side effects second.
+ *
+ * Emitted by: UsersService.create()
+ */
+export interface UserRegisteredEvent {
+  userId: string;
+  email: string; // Destination for welcome email
+  role: string; // e.g. 'CUSTOMER', 'VENDOR', 'RIDER'
+}
 
 // ==================== ORDER EVENT PAYLOADS ====================
 

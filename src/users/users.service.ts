@@ -6,10 +6,15 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { plainToClass } from 'class-transformer';
+import {
+  NOTIFICATION_EVENTS,
+  UserRegisteredEvent,
+} from '../notifications/events/notification-events';
 
 @Injectable()
 export class UsersService {
@@ -18,6 +23,17 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+
+    /**
+     * EventEmitter2 is injected globally — no need to import EventEmitterModule here.
+     *
+     * KEY LEARNING: Why emit here and not in the controller?
+     * =======================================================
+     * Services own the business logic. The controller's job is just routing HTTP.
+     * Emitting from the service means the event fires regardless of HOW create()
+     * is called (HTTP, gRPC, CLI command, test, etc.) — not just from HTTP.
+     */
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // Register new user
@@ -41,6 +57,25 @@ export class UsersService {
     const savedUser = await this.userRepository.save(user);
 
     this.logger.log(`User created successfully: ${savedUser.id}`);
+
+    /**
+     * Emit AFTER save() returns — the user row is committed to the DB.
+     *
+     * KEY LEARNING: Event emission order
+     * ====================================
+     * If we emitted BEFORE save(), the welcome email job would be queued
+     * for a user that might not exist yet (if save() fails after emit).
+     * Always emit after the DB operation succeeds.
+     *
+     * The CommunicationEventsListener picks this up and queues a welcome email job.
+     * This service doesn't know or care about email — it just fires the event.
+     */
+    const event: UserRegisteredEvent = {
+      userId: savedUser.id,
+      email: savedUser.email,
+      role: savedUser.role,
+    };
+    this.eventEmitter.emit(NOTIFICATION_EVENTS.USER_REGISTERED, event);
 
     // Return user without password
     return plainToClass(UserResponseDto, savedUser, {

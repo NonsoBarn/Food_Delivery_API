@@ -1,8 +1,9 @@
 import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { WinstonModule } from 'nest-winston';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { BullModule } from '@nestjs/bullmq';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -31,6 +32,7 @@ import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { DeliveryModule } from './delivery/delivery.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { CommunicationModule } from './communication/communication.module';
 
 @Module({
   imports: [
@@ -38,6 +40,32 @@ import { NotificationsModule } from './notifications/notifications.module';
     ConfigModule.forRoot({
       isGlobal: true, // Makes ConfigModule available everywhere
       envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
+    }),
+
+    /**
+     * BullModule — global job queue backed by Redis.
+     *
+     * KEY LEARNING: BullModule.forRootAsync() vs forRoot()
+     * ======================================================
+     * forRoot() accepts a plain config object — works if Redis settings are hard-coded.
+     * forRootAsync() accepts a factory function that can inject ConfigService,
+     * so we can read REDIS_HOST / REDIS_PORT from the env file at startup.
+     *
+     * forRoot() registers the Redis connection GLOBALLY for ALL queues.
+     * Each sub-module (MailModule, SmsModule) calls BullModule.registerQueue({ name: '...' })
+     * to get a named channel — they all share this one Redis connection.
+     *
+     * We reuse the same Redis instance as the cart (no extra Redis needed).
+     */
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: {
+          host: config.get<string>('REDIS_HOST') ?? 'localhost',
+          port: config.get<number>('REDIS_PORT') ?? 6379,
+        },
+      }),
     }),
 
     /**
@@ -78,6 +106,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     PaymentsModule,
     DeliveryModule,
     NotificationsModule,
+    CommunicationModule,
 
     // Storage
     StorageModule,
