@@ -16,6 +16,7 @@ import { CartService } from './cart.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from 'src/users/entities/user.entity';
 
@@ -37,6 +38,7 @@ import { User } from 'src/users/entities/user.entity';
   path: 'cart',
   version: '1',
 })
+@UseGuards(OptionalJwtAuthGuard) // Runs JWT strategy if token present; never throws if missing
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 

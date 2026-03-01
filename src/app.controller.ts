@@ -1,51 +1,42 @@
-import {
-  Controller,
-  Get,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Controller, Get, Post } from '@nestjs/common';
 import { AppService } from './app.service';
+import { CartCleanupJob } from './scheduled-jobs/jobs/cart-cleanup.job';
+import { ReportsJob } from './scheduled-jobs/jobs/reports.job';
+import { ReminderEmailsJob } from './scheduled-jobs/jobs/reminder-emails.job';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(
+    private readonly appService: AppService,
+    private readonly cartJob: CartCleanupJob,
+    private readonly reportsJob: ReportsJob,
+    private readonly reminderJob: ReminderEmailsJob,
+  ) {}
 
   @Get()
   getHello(): string {
     return this.appService.getHello();
   }
 
-  // Test 404 error
-  @Get('test/not-found')
-  testNotFound() {
-    throw new NotFoundException('This resource does not exist');
+  // ── Dev-only job trigger endpoints (Method B from testing guide) ──
+
+  @Post('dev/jobs/cart-cleanup')
+  runCartCleanup() {
+    return this.cartJob.reportCartStats();
   }
 
-  // Test 400 error
-  @Get('test/bad-request')
-  testBadRequest() {
-    throw new BadRequestException('Invalid request parameters');
+  @Post('dev/jobs/daily-report')
+  runDailyReport() {
+    return this.reportsJob.generateDailyReport();
   }
 
-  // Test 500 error
-  @Get('test/server-error')
-  testServerError() {
-    throw new Error('Something went wrong!');
+  @Post('dev/jobs/weekly-report')
+  runWeeklyReport() {
+    return this.reportsJob.generateWeeklyReport();
   }
 
-  // Test validation error
-  @Get('test/validation')
-  testValidation() {
-    throw new BadRequestException([
-      'email must be an email',
-      'password must be longer than 6 characters',
-    ]);
-  }
-
-  // Test 500 error logging
-  @Get('test/error-500')
-  testServerError500() {
-    // This will trigger a 500 Internal Server Error
-    throw new Error('This is a test 500 error!');
+  @Post('dev/jobs/cart-reminders')
+  runReminders() {
+    return this.reminderJob.sendAbandonedCartReminders();
   }
 }

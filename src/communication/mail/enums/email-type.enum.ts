@@ -17,4 +17,10 @@ export enum EmailType {
   ORDER_CONFIRMATION = 'order.confirmation',
   ORDER_STATUS_UPDATE = 'order.status.update',
   DELIVERY_COMPLETION = 'delivery.completion',
+  /**
+   * Phase 10.4: Sent to users who have items in their cart
+   * but haven't placed an order in the past 3 days.
+   * Queued by ReminderEmailsJob (scheduled cron task).
+   */
+  ABANDONED_CART = 'abandoned.cart',
 }

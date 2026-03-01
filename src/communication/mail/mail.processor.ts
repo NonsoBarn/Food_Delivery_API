@@ -94,6 +94,33 @@ export class MailProcessor extends WorkerHost {
         break;
       }
 
+      case EmailType.ABANDONED_CART: {
+        /**
+         * Phase 10.4 — Abandoned cart reminder.
+         *
+         * KEY LEARNING: Graceful degradation / scaffolding
+         * ==================================================
+         * The actual email send is a TODO — you'd add sendAbandonedCart()
+         * to the IEmailService interface and implement it in the providers.
+         *
+         * For now we log it to demonstrate the complete pipeline:
+         *   Cron job → Redis SCAN → DB check → BullMQ job → Processor ← here
+         *
+         * The scaffolding is complete. Swapping the logger for a real
+         * email send is a single-method change in the email providers.
+         *
+         * This also teaches an important pattern: build the pipeline first,
+         * implement the terminal action last — you can verify the whole
+         * flow without needing working SMTP credentials.
+         */
+        const { to, cartItemCount } = job.data as { to: string; cartItemCount: number };
+        this.logger.log(
+          `[ABANDONED_CART] Reminder email queued for ${to} (${cartItemCount} items). ` +
+          `Implement sendAbandonedCart() in IEmailService to send real emails.`,
+        );
+        break;
+      }
+
       default:
         this.logger.warn(`Unknown email job type: ${job.name}. Skipping.`);
     }

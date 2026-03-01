@@ -1,8 +1,17 @@
 /**
  * NotificationsModule
  *
- * Owns all WebSocket infrastructure: the gateway, event listeners,
- * and the dependencies they need.
+ * Extended in Phase 10.3 to include persistent in-app notifications.
+ *
+ * Phase 9 responsibilities (unchanged):
+ * - WebSocket gateway (NotificationsGateway)
+ * - Real-time broadcast listeners (OrderEventsListener, DeliveryEventsListener)
+ *
+ * Phase 10.3 additions:
+ * - Notification entity (DB table for persisting notifications)
+ * - NotificationService (CRUD + real-time push on create)
+ * - NotificationsController (REST endpoints for the inbox)
+ * - Profile repositories (needed by listeners to resolve userId from profileId)
  *
  * KEY LEARNING: Module Boundary Design
  * ======================================
@@ -11,32 +20,51 @@
  * - Users (to load the full user on connection)
  * - Delivery (for RiderLocationService and findActiveDeliveryForRider)
  *
- * It does NOT import OrdersModule or DeliveryModule for events.
+ * It does NOT import OrdersModule or CommunicationModule.
  * The event bus (@nestjs/event-emitter) is global — OrdersService
  * and DeliveryService emit events WITHOUT importing this module.
  * The listeners receive them WITHOUT the services knowing they exist.
  *
- * KEY LEARNING: JwtModule Registration
- * ======================================
- * We import JwtModule separately here (not AuthModule).
- * AuthModule exports PassportModule and AuthService, but not JwtModule itself.
+ * KEY LEARNING: TypeOrmModule.forFeature() in a feature module
+ * ==============================================================
+ * Each module that needs database access calls TypeOrmModule.forFeature()
+ * to register the entities it owns OR needs to query.
  *
- * The gateway needs JwtService.verify() to validate tokens in the WebSocket
- * handshake. We register JwtModule with the same secret as AuthModule.
+ * The Notification entity is OWNED by this module — only this module
+ * creates, reads, and updates notification records.
  *
- * Since ConfigModule.forRoot({ isGlobal: true }) loads all env vars globally,
- * we can access JWT_SECRET directly through ConfigService without needing
- * to load the jwt.config.ts namespace file.
+ * CustomerProfile, VendorProfile, RiderProfile are NOT owned here — they
+ * belong to UsersModule. But our listeners need to look up the User.id
+ * from a profile ID (e.g. "which user owns CustomerProfile abc-123?").
+ *
+ * KEY LEARNING: Can you register the same entity in multiple modules?
+ * ====================================================================
+ * YES! TypeOrmModule.forFeature() just provides a repository.
+ * The underlying DB table is created once (by whoever first defines the entity).
+ * Multiple modules can have READ access to the same table via their own
+ * repository instance — TypeORM has no "exclusive ownership" restriction.
+ *
+ * This is the same pattern used in CommunicationModule, which also
+ * registers CustomerProfile and VendorProfile for listener lookups.
  */
 
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { NotificationsGateway } from './gateways/notifications.gateway';
 import { OrderEventsListener } from './listeners/order-events.listener';
 import { DeliveryEventsListener } from './listeners/delivery-events.listener';
+import { NotificationService } from './notifications.service';
+import { NotificationsController } from './notifications.controller';
+import { Notification } from './entities/notification.entity';
 import { UsersModule } from '../users/users.module';
 import { DeliveryModule } from '../delivery/delivery.module';
+
+// Profile entities — needed by listeners to resolve userId from profileId
+import { CustomerProfile } from '../users/entities/customer-profile.entity';
+import { VendorProfile } from '../users/entities/vendor-profile.entity';
+import { RiderProfile } from '../users/entities/rider-profile.entity';
 
 @Module({
   imports: [
@@ -58,6 +86,24 @@ import { DeliveryModule } from '../delivery/delivery.module';
     }),
 
     /**
+     * TypeOrmModule.forFeature() — registers entity repositories.
+     *
+     * Notification — OWNED by this module.
+     *   NotificationService @InjectRepository(Notification) gets this repo.
+     *
+     * CustomerProfile, VendorProfile, RiderProfile — READ-ONLY access.
+     *   OrderEventsListener needs CustomerProfile + VendorProfile repos
+     *   to look up userId from the profile IDs in event payloads.
+     *   DeliveryEventsListener needs RiderProfile repo for the same reason.
+     */
+    TypeOrmModule.forFeature([
+      Notification,
+      CustomerProfile,
+      VendorProfile,
+      RiderProfile,
+    ]),
+
+    /**
      * UsersModule exports UsersService.
      * The gateway calls usersService.findByEmail() to enrich the JWT payload
      * with role-specific profile data (vendorProfile, customerProfile, etc.)
@@ -71,6 +117,15 @@ import { DeliveryModule } from '../delivery/delivery.module';
      *   location broadcasts to the right order room
      */
     DeliveryModule,
+  ],
+  controllers: [
+    /**
+     * NotificationsController handles the REST API for the inbox:
+     *   GET    /api/v1/notifications          — list notifications
+     *   PATCH  /api/v1/notifications/read-all — mark all as read
+     *   PATCH  /api/v1/notifications/:id/read — mark one as read
+     */
+    NotificationsController,
   ],
   providers: [
     /**
@@ -86,6 +141,20 @@ import { DeliveryModule } from '../delivery/delivery.module';
      */
     OrderEventsListener,
     DeliveryEventsListener,
+
+    /**
+     * NotificationService — the core service for Phase 10.3.
+     * Handles DB persistence and real-time push via the gateway.
+     */
+    NotificationService,
+  ],
+  exports: [
+    /**
+     * Export NotificationService so other modules can create notifications
+     * programmatically if needed in the future (e.g. a system broadcast
+     * from AdminModule).
+     */
+    NotificationService,
   ],
 })
 export class NotificationsModule {}

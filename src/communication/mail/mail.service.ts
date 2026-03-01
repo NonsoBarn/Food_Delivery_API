@@ -103,4 +103,37 @@ export class MailService {
 
     this.logger.log(`Queued delivery completion email for: ${data.to} (${data.orderNumber})`);
   }
+
+  /**
+   * Queue an abandoned cart reminder email.
+   *
+   * Phase 10.4 — called by ReminderEmailsJob (scheduled cron task)
+   * when a user has items in their Redis cart but hasn't ordered in 3+ days.
+   *
+   * KEY LEARNING: Re-using the same BullMQ queue for a new job type
+   * =================================================================
+   * We add a job with name EmailType.ABANDONED_CART to the same 'email' queue.
+   * The MailProcessor switch(job.name) routes it to the correct handler.
+   * No new queue is needed — one queue, multiple job types via the job name.
+   *
+   * KEY LEARNING: Job priority
+   * ===========================
+   * BullMQ supports priority-based job ordering.
+   * Lower number = higher priority. Default = 0 (highest).
+   * We use priority: 10 for reminders — they're lower priority than
+   * transactional emails (order confirmation, delivery completion).
+   * This ensures transactional emails always process first.
+   */
+  async queueAbandonedCartEmail(to: string, cartItemCount: number): Promise<void> {
+    await this.emailQueue.add(
+      EmailType.ABANDONED_CART,
+      { to, cartItemCount },
+      {
+        ...this.defaultJobOptions,
+        priority: 10, // Lower than transactional emails
+      },
+    );
+
+    this.logger.log(`Queued abandoned cart reminder for: ${to} (${cartItemCount} items)`);
+  }
 }

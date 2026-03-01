@@ -4,6 +4,7 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { WinstonModule } from 'nest-winston';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BullModule } from '@nestjs/bullmq';
+import { ScheduleModule } from '@nestjs/schedule';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -33,6 +34,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { DeliveryModule } from './delivery/delivery.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CommunicationModule } from './communication/communication.module';
+import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 
 @Module({
   imports: [
@@ -90,6 +92,45 @@ import { CommunicationModule } from './communication/communication.module';
       global: true,
     }),
 
+    /**
+     * ScheduleModule — global cron/interval scheduler.
+     *
+     * KEY LEARNING: ScheduleModule.forRoot()
+     * ========================================
+     * This registers the scheduler ENGINE once for the whole app.
+     * It must be called in the ROOT module (AppModule), not in feature modules.
+     *
+     * Under the hood, it starts a cron runner (using the `cron` npm package)
+     * that scans all providers for @Cron() / @Interval() / @Timeout() decorators
+     * and registers them.
+     *
+     * forRoot() is called WITHOUT arguments — the scheduler has no
+     * meaningful configuration (unlike BullModule which needs Redis).
+     *
+     * KEY LEARNING: ScheduleModule vs BullMQ for recurring tasks
+     * ============================================================
+     * ScheduleModule (@Cron):
+     *   ✓ Simple, built into NestJS
+     *   ✓ Great for lightweight tasks (reports, cleanup)
+     *   ✗ Runs in-process — if the app crashes, the next run is missed
+     *   ✗ Doesn't scale horizontally (every replica runs the same cron)
+     *   ✗ No job history or retry on failure
+     *
+     * BullMQ (repeating jobs):
+     *   ✓ Jobs survive app restarts (stored in Redis)
+     *   ✓ One replica picks up the job (no duplication in multi-replica)
+     *   ✓ Retry on failure, job history, dead-letter queue
+     *   ✗ More setup required
+     *   ✗ Requires Redis
+     *
+     * For this learning project, @nestjs/schedule is the right choice:
+     * simpler to understand, teaches cron expressions directly, and
+     * sufficient for a single-instance deployment.
+     *
+     * In production at scale → migrate to BullMQ repeating jobs.
+     */
+    ScheduleModule.forRoot(),
+
     // Logging
     WinstonModule.forRoot(loggerConfig),
 
@@ -107,6 +148,21 @@ import { CommunicationModule } from './communication/communication.module';
     DeliveryModule,
     NotificationsModule,
     CommunicationModule,
+
+    /**
+     * ScheduledJobsModule — all cron-based background tasks.
+     *
+     * KEY LEARNING: Placement in AppModule
+     * ======================================
+     * This module must be imported AFTER ScheduleModule.forRoot() above.
+     * The scheduler needs to be initialized before it can discover @Cron
+     * decorators in ScheduledJobsModule's providers.
+     *
+     * In practice, NestJS resolves the import order correctly — but
+     * placing ScheduledJobsModule after ScheduleModule.forRoot() makes
+     * the dependency relationship explicit in the code.
+     */
+    ScheduledJobsModule,
 
     // Storage
     StorageModule,

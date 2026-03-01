@@ -226,6 +226,32 @@ export class NotificationsGateway
       // Join role-based rooms automatically on connect
       await this.joinRoleRooms(client);
 
+      /**
+       * KEY LEARNING: Personal User Room (Phase 10.3)
+       * ===============================================
+       * We now also join a `user:{userId}` room on every connection.
+       *
+       * WHY: In-app notifications are targeted to a SPECIFIC USER, not a role.
+       * The existing role rooms work great for:
+       *   vendor:{id}  → all vendors see new orders (but we want ONE vendor's orders)
+       *   rider:{id}   → fine, already per-rider
+       *   admin        → broadcast to all admins
+       *
+       * But when NotificationService.create() wants to push a notification
+       * to userId = 'abc-123', it needs a room that ONLY 'abc-123' is in.
+       * user:{userId} is that room.
+       *
+       * This enables:
+       *   this.gateway.server.to(`user:${userId}`).emit('notification:new', ...)
+       *
+       * If the user has multiple devices/tabs connected, ALL of them join
+       * user:{userId} and ALL of them receive the notification push.
+       *
+       * The personal room and the role room are NOT mutually exclusive.
+       * A vendor socket is in BOTH vendor:{profileId} AND user:{userId}.
+       */
+      await client.join(`user:${requestUser.id}`);
+
       this.logger.log(
         `Client connected: ${client.id} (user: ${user.email}, role: ${user.role})`,
       );
