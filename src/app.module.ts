@@ -36,6 +36,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { CommunicationModule } from './communication/communication.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { AdminModule } from './admin/admin.module';
+import { VendorsModule } from './vendors/vendors.module';
 
 @Module({
   imports: [
@@ -175,6 +177,43 @@ import { ReviewsModule } from './reviews/reviews.module';
      *   GET  /reviews/vendors/:id   — public: get reviews for a vendor
      */
     ReviewsModule,
+
+    /**
+     * AdminModule — Phase 12.1: Admin dashboard.
+     *
+     * All routes are ADMIN-only (JwtAuthGuard + RolesGuard enforced at controller level).
+     * Provides:
+     *   GET    /admin/stats                — Platform-wide statistics
+     *   GET    /admin/vendors              — Paginated vendor list (with status filter)
+     *   GET    /admin/vendors/:id          — Single vendor detail + aggregate stats
+     *   PATCH  /admin/vendors/:id/status   — Approve / reject / suspend a vendor
+     *   GET    /admin/users                — Paginated user list (with role filter)
+     *   GET    /admin/reports              — On-demand revenue report (DATE_TRUNC grouping)
+     *   GET    /admin/categories           — All categories (including inactive)
+     *   POST   /admin/categories           — Create a category
+     *   PATCH  /admin/categories/:id       — Update a category
+     *   DELETE /admin/categories/:id       — Soft-delete a category
+     *
+     * KEY LEARNING: AdminModule imports CategoriesModule to reuse CategoriesService
+     * (slug generation, 2-level depth validation, circular reference prevention).
+     * The admin routes delegate category business logic to CategoriesService rather
+     * than reimplementing it — DRY principle in practice.
+     */
+    AdminModule,
+
+    /**
+     * VendorsModule — Phase 12.2: Vendor analytics dashboard.
+     *
+     * All routes are VENDOR-only (scoped to the authenticated vendor's own data).
+     * Provides:
+     *   GET /vendors/dashboard              — Sales overview, pending orders, revenue
+     *   GET /vendors/products/performance   — Products ranked by revenue
+     *   GET /vendors/revenue                — Revenue trend by period (DATE_TRUNC)
+     *
+     * KEY LEARNING: Data scoping — every query is filtered by the authenticated
+     * vendor's profile ID. Vendors can only ever see their own business data.
+     */
+    VendorsModule,
 
     // Storage
     StorageModule,
