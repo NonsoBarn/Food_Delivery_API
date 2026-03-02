@@ -35,6 +35,7 @@ import { DeliveryModule } from './delivery/delivery.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CommunicationModule } from './communication/communication.module';
 import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -163,6 +164,17 @@ import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
      * the dependency relationship explicit in the code.
      */
     ScheduledJobsModule,
+
+    /**
+     * ReviewsModule — Phase 11: Product reviews and vendor ratings.
+     *
+     * Provides:
+     *   POST /reviews/products/:id  — customer submits a product review
+     *   GET  /reviews/products/:id  — public: get reviews for a product
+     *   POST /reviews/vendors/:id   — customer rates a vendor
+     *   GET  /reviews/vendors/:id   — public: get reviews for a vendor
+     */
+    ReviewsModule,
 
     // Storage
     StorageModule,

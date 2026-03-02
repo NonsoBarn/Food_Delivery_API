@@ -33,8 +33,9 @@ export const loggerConfig: WinstonModuleOptions = {
     }),
 
     // File logging - errors only
+    // Use a relative path so it works both locally (./logs/) and in Docker (/app/logs/)
     new winston.transports.File({
-      filename: '/app/logs/error.log',
+      filename: 'logs/error.log',
       level: 'error',
       format: winston.format.combine(
         winston.format.timestamp(),
@@ -44,7 +45,7 @@ export const loggerConfig: WinstonModuleOptions = {
 
     // File logging - all logs
     new winston.transports.File({
-      filename: '/app/logs/combined.log',
+      filename: 'logs/combined.log',
       format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.json(),
