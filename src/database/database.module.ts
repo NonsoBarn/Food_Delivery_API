@@ -22,6 +22,7 @@ import databaseConfig from '../config/database.config';
         entities: [__dirname + '/../**/*.entity{.ts,.js}'],
         synchronize: configService.get('database.synchronize'),
         logging: configService.get('database.logging'),
+        ssl: configService.get('database.ssl'),
       }),
     }),
   ],
