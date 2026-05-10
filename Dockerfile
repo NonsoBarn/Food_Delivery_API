@@ -8,7 +8,7 @@ COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 
 COPY . .
-RUN yarn build
+RUN NODE_OPTIONS="--max-old-space-size=1536" yarn build
 
 # ---
 
@@ -27,4 +27,4 @@ RUN mkdir -p /app/logs
 
 EXPOSE 3000
 
-CMD ["node", "dist/main"]
+CMD ["node", "dist/src/main"]
