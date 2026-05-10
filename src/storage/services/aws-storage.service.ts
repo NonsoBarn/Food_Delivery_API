@@ -39,14 +39,12 @@ export class AwsStorageService implements IStorageService {
       throw new Error('AWS S3 configuration is incomplete');
     }
 
-    // Initialize S3 Client — if explicit credentials provided use them,
-    // otherwise SDK falls back to IAM instance role automatically
-    this.s3Client = new S3Client({
-      region,
-      ...(accessKeyId && secretAccessKey
-        ? { credentials: { accessKeyId, secretAccessKey } }
-        : {}),
-    });
+    // Initialize S3 Client - SDK uses IAM instance role automatically if no credentials
+    const clientConfig: { region: string; credentials?: { accessKeyId: string; secretAccessKey: string } } = { region };
+    if (accessKeyId && secretAccessKey) {
+      clientConfig.credentials = { accessKeyId, secretAccessKey };
+    }
+    this.s3Client = new S3Client(clientConfig);
 
     this.bucket = bucket;
     this.publicUrl = publicUrl;
