@@ -28,4 +28,5 @@ export default registerAs('database', () => ({
   logging: process.env.NODE_ENV === 'development',
   migrations: ['dist/database/migrations/*{.ts,.js}'],
   migrationsTableName: 'migrations',
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 }));
