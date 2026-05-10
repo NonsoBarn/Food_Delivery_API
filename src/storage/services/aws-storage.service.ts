@@ -34,18 +34,18 @@ export class AwsStorageService implements IStorageService {
     const bucket = this.configService.get<string>('aws.s3.bucket');
     const publicUrl = this.configService.get<string>('aws.s3.publicUrl');
 
-    // Validate required configuration
-    if (!region || !accessKeyId || !secretAccessKey || !bucket || !publicUrl) {
+    // Validate required configuration (credentials optional — IAM role used on EC2)
+    if (!region || !bucket || !publicUrl) {
       throw new Error('AWS S3 configuration is incomplete');
     }
 
-    // Initialize S3 Client
+    // Initialize S3 Client — if explicit credentials provided use them,
+    // otherwise SDK falls back to IAM instance role automatically
     this.s3Client = new S3Client({
       region,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
+      ...(accessKeyId && secretAccessKey
+        ? { credentials: { accessKeyId, secretAccessKey } }
+        : {}),
     });
 
     this.bucket = bucket;

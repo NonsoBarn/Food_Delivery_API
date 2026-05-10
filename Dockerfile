@@ -1,24 +1,30 @@
-FROM node:20-alpine
+FROM node:20-alpine AS builder
+
+RUN apk upgrade --no-cache
 
 WORKDIR /app
 
-# Copy package files
 COPY package.json yarn.lock ./
-
-# Install dependencies with Yarn
 RUN yarn install --frozen-lockfile
 
-# Verify nest CLI is installed
-RUN npx nest --version
-
-# Copy source code and config
 COPY . .
+RUN yarn build
 
-# Create logs directory
+# ---
+
+FROM node:20-alpine AS production
+
+RUN apk upgrade --no-cache
+
+WORKDIR /app
+
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile --production
+
+COPY --from=builder /app/dist ./dist
+
 RUN mkdir -p /app/logs
 
-# Expose port 3000
 EXPOSE 3000
 
-# Run with hot-reload using Yarn
-CMD ["yarn", "start:dev"]
+CMD ["node", "dist/main"]

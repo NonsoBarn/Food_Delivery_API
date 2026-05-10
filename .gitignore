@@ -43,6 +43,9 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# AWS setup scripts (contain real values)
+setup-params.sh
+
 # temp directory
 .temp
 .tmp
@@ -55,5 +58,5 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-.env.development
-.env.development
+.env
+.env.*
