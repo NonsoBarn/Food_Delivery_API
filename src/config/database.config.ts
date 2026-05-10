@@ -23,7 +23,7 @@ export default registerAs('database', () => ({
    *   Safe here because food_delivery_test is a throwaway database — its only
    *   purpose is to be overwritten by tests.
    */
-  synchronize: ['development', 'test'].includes(process.env.NODE_ENV ?? ''),
+  synchronize: process.env.NODE_ENV !== 'production' || process.env.DB_SYNC === 'true',
   dropSchema: process.env.NODE_ENV === 'test',
   logging: process.env.NODE_ENV === 'development',
   migrations: ['dist/database/migrations/*{.ts,.js}'],
