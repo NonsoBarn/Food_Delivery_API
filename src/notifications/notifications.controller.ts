@@ -61,17 +61,20 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { NotificationService } from './notifications.service';
 import { GetNotificationsDto } from './dto/get-notifications.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 
+@ApiTags('Notifications')
+@ApiBearerAuth()
 @Controller({
   path: 'notifications',
-  version: '1', // → /api/v1/notifications
+  version: '1',
 })
-@UseGuards(JwtAuthGuard) // All notification routes require authentication
+@UseGuards(JwtAuthGuard)
 export class NotificationsController {
   constructor(private readonly notificationService: NotificationService) {}
 
@@ -104,6 +107,8 @@ export class NotificationsController {
    * forged. Query params are user-controlled and cannot be trusted.
    */
   @Get()
+  @ApiOperation({ summary: 'Get notification inbox' })
+  @ApiResponse({ status: 200, description: 'Paginated notifications with unread count' })
   async getUserNotifications(
     @CurrentUser() user: User,
     @Query() query: GetNotificationsDto,
@@ -133,6 +138,8 @@ export class NotificationsController {
    * "unread-count" being captured as `:id`.
    */
   @Get('unread-count')
+  @ApiOperation({ summary: 'Get unread notification count (badge)' })
+  @ApiResponse({ status: 200, description: '{ unreadCount: number }' })
   async getUnreadCount(@CurrentUser() user: User) {
     return this.notificationService.getUnreadCount(user.id);
   }
@@ -164,6 +171,8 @@ export class NotificationsController {
    */
   @Patch('read-all')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mark all notifications as read' })
+  @ApiResponse({ status: 200, description: '{ updated: number }' })
   async markAllAsRead(@CurrentUser() user: User) {
     return this.notificationService.markAllAsRead(user.id);
   }
@@ -189,6 +198,8 @@ export class NotificationsController {
    */
   @Patch(':id/read')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mark a single notification as read' })
+  @ApiResponse({ status: 200, description: 'Updated notification' })
   async markAsRead(
     @Param('id') id: string,
     @CurrentUser() user: User,
@@ -218,6 +229,8 @@ export class NotificationsController {
    */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a notification' })
+  @ApiResponse({ status: 204, description: 'Deleted' })
   async deleteNotification(
     @Param('id') id: string,
     @CurrentUser() user: User,

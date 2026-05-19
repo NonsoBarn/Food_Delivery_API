@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { SocketIoAdapter } from './notifications/adapters/socket-io.adapter';
 
@@ -51,12 +52,23 @@ async function bootstrap() {
   await socketAdapter.connectToRedis();
   app.useWebSocketAdapter(socketAdapter);
 
+  // Swagger UI
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Food Delivery API')
+    .setDescription('REST API for the Food Delivery platform')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('docs', app, document);
+
   // Get port from environment or default to 3000
   const port = process.env.PORT || 3000;
 
   await app.listen(port);
   console.log(`🚀 Application is running on: http://localhost:${port}`);
   console.log(`📡 API v1: http://localhost:${port}/api/v1`);
+  console.log(`📖 Swagger docs: http://localhost:${port}/docs`);
   console.log(
     `🔌 WebSocket: ws://localhost:${port}/socket.io/notifications`,
   );

@@ -1,31 +1,23 @@
 import { IsNumber, IsOptional, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
-/**
- * DTO for finding nearby riders.
- *
- * KEY LEARNING: Sensible Defaults
- * ================================
- * radiusKm defaults to 5 and limit to 10.
- * This means the API works with just lat/lng — no need to specify
- * every parameter. But power users can tune them.
- *
- * Max radius is 50km — beyond that, the rider is too far for a
- * reasonable delivery. This prevents accidental "search the entire planet" queries.
- */
 export class FindNearbyRidersDto {
+  @ApiProperty({ example: 6.5244, minimum: -90, maximum: 90 })
   @Type(() => Number)
   @IsNumber()
   @Min(-90)
   @Max(90)
   latitude: number;
 
+  @ApiProperty({ example: 3.3792, minimum: -180, maximum: 180 })
   @Type(() => Number)
   @IsNumber()
   @Min(-180)
   @Max(180)
   longitude: number;
 
+  @ApiPropertyOptional({ example: 5, minimum: 0.1, maximum: 50, default: 5, description: 'Search radius in km' })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -33,6 +25,7 @@ export class FindNearbyRidersDto {
   @Max(50)
   radiusKm?: number = 5;
 
+  @ApiPropertyOptional({ example: 10, minimum: 1, maximum: 50, default: 10 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()

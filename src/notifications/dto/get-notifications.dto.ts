@@ -44,6 +44,7 @@
 
 import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class GetNotificationsDto {
   /**
@@ -55,6 +56,7 @@ export class GetNotificationsDto {
    * @Min(1) — asking for 0 notifications makes no sense.
    * @Max(100) — prevents the client from requesting unlimited rows.
    */
+  @ApiPropertyOptional({ example: 20, minimum: 1, maximum: 100, default: 20 })
   @IsOptional()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
   @IsInt()
@@ -62,34 +64,14 @@ export class GetNotificationsDto {
   @Max(100)
   limit?: number = 20;
 
-  /**
-   * Number of notifications to skip (for pagination).
-   *
-   * Default: 0 (start from the beginning — most recent notification).
-   * @Min(0) — negative offset doesn't make sense.
-   */
+  @ApiPropertyOptional({ example: 0, minimum: 0, default: 0 })
   @IsOptional()
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
   @IsInt()
   @Min(0)
   offset?: number = 0;
 
-  /**
-   * When true, only return unread notifications.
-   *
-   * KEY LEARNING: Boolean query params need special handling
-   * =========================================================
-   * URL query parameters are always strings.
-   * ?unreadOnly=true sends the STRING "true", not the boolean true.
-   *
-   * @Transform converts:
-   *   "true"  → true
-   *   "false" → false
-   *   "1"     → true
-   *   "0"     → false
-   *
-   * Without this transform, @IsBoolean() would reject the string "true".
-   */
+  @ApiPropertyOptional({ example: false, default: false, description: 'Return only unread notifications' })
   @IsOptional()
   @Transform(({ value }: { value: string }) => {
     if (value === 'true' || value === '1') return true;

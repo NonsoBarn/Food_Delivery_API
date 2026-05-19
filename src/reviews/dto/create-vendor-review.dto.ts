@@ -23,48 +23,27 @@
  */
 import { IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateVendorReviewDto {
   /**
    * Star rating: 1 to 5.
    * Same validation as product reviews — whole numbers only.
    */
+  @ApiProperty({ example: 4, minimum: 1, maximum: 5, description: 'Star rating (1–5)' })
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(5)
   rating: number;
 
-  /**
-   * Written feedback (optional).
-   *
-   * For vendor ratings, customers often comment on:
-   * - Delivery speed ("Arrived in under 20 minutes!")
-   * - Packaging quality ("Food was still hot")
-   * - Order accuracy ("They forgot my drink")
-   * - Customer service ("Vendor was responsive to my notes")
-   */
+  @ApiPropertyOptional({ example: 'Food arrived hot and on time!', maxLength: 1000 })
   @IsString()
   @IsOptional()
   @MaxLength(1000)
   comment?: string;
 
-  /**
-   * The order ID this rating is for.
-   *
-   * This is REQUIRED (not optional) because:
-   * 1. We need it to verify the purchase happened
-   * 2. It's the unique key for "one rating per order" constraint
-   *
-   * The service will verify:
-   *   - This order exists
-   *   - This order belongs to the requesting customer
-   *   - This order belongs to the vendor being rated
-   *   - This order has status = DELIVERED
-   *
-   * @IsUUID('4') — validates UUID v4 format (rejects random strings that
-   * could never match a real order, short-circuits DB lookup for invalid inputs)
-   */
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000', description: 'Order ID this review is for (proof of purchase)' })
   @IsUUID('4')
   @IsNotEmpty()
   orderId: string;

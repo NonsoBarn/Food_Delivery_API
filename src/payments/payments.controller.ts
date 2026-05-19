@@ -30,6 +30,7 @@ import {
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -43,6 +44,7 @@ import { RefundPaymentDto } from './dto/refund-payment.dto';
 import { UpdateProviderConfigDto } from './dto/update-provider-config.dto';
 import { PaymentProvider } from './enums/payment-provider.enum';
 
+@ApiTags('Payments')
 @Controller({
   path: 'payments',
   version: '1',
@@ -61,6 +63,8 @@ export class PaymentsController {
    * to render payment options at checkout.
    */
   @Get('providers')
+  @ApiOperation({ summary: 'Get enabled payment providers (public)' })
+  @ApiResponse({ status: 200, description: 'List of enabled providers for checkout UI' })
   async getEnabledProviders() {
     return this.paymentsService.getEnabledProviders();
   }
@@ -78,6 +82,10 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER)
   @HttpCode(HttpStatus.CREATED)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Initialize a payment', description: 'Roles: customer. Returns checkoutUrl (Paystack/Flutterwave) or clientSecret (Stripe).' })
+  @ApiResponse({ status: 201, description: 'Payment initialized' })
+  @ApiResponse({ status: 403, description: 'Forbidden — not a customer' })
   async initializePayment(
     @Body() dto: InitializePaymentDto,
     @CurrentUser() user: User,
@@ -110,6 +118,9 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER)
   @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verify a payment after redirect', description: 'Roles: customer' })
+  @ApiResponse({ status: 200, description: 'Payment verified and orders updated' })
   async verifyPayment(@Body() dto: VerifyPaymentDto) {
     return this.paymentsService.verifyPayment(dto.reference);
   }
@@ -121,6 +132,9 @@ export class PaymentsController {
    */
   @Get('order-group/:orderGroupId')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get payments for an order group' })
+  @ApiResponse({ status: 200, description: 'Payments for the order group' })
   async getPaymentsByOrderGroup(@Param('orderGroupId') orderGroupId: string) {
     return this.paymentsService.findByOrderGroup(orderGroupId);
   }
@@ -132,6 +146,9 @@ export class PaymentsController {
    */
   @Get(':id')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get payment by ID' })
+  @ApiResponse({ status: 200, description: 'Payment detail' })
   async getPayment(@Param('id') id: string) {
     return this.paymentsService.findOne(id);
   }
@@ -150,6 +167,9 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Refund a payment', description: 'Roles: admin' })
+  @ApiResponse({ status: 200, description: 'Refund processed' })
   async refundPayment(@Body() dto: RefundPaymentDto) {
     return this.paymentsService.refundPayment(
       dto.paymentId,
@@ -166,6 +186,9 @@ export class PaymentsController {
   @Get('providers/config')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all provider configs', description: 'Roles: admin' })
+  @ApiResponse({ status: 200, description: 'Provider configurations' })
   async getProviderConfigs() {
     return this.paymentsService.getAllProviderConfigs();
   }
@@ -180,6 +203,9 @@ export class PaymentsController {
   @Patch('providers/:provider/config')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update provider config (enable/disable, fees, currencies)', description: 'Roles: admin' })
+  @ApiResponse({ status: 200, description: 'Provider config updated' })
   async updateProviderConfig(
     @Param('provider') provider: PaymentProvider,
     @Body() dto: UpdateProviderConfigDto,

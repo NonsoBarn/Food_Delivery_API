@@ -27,6 +27,7 @@
  * This is the "loose coupling" principle applied to DTOs.
  */
 import { IsEnum, IsOptional, IsDateString } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum RevenuePeriod {
   DAILY = 'daily',
@@ -35,30 +36,19 @@ export enum RevenuePeriod {
 }
 
 export class RevenueQueryDto {
-  /**
-   * Time granularity for the revenue breakdown:
-   * - daily:   one data point per day (good for last 30 days view)
-   * - weekly:  one data point per week (good for quarterly view)
-   * - monthly: one data point per month (good for yearly view)
-   */
+  @ApiPropertyOptional({ enum: RevenuePeriod, default: RevenuePeriod.DAILY })
   @IsEnum(RevenuePeriod, {
     message: 'period must be one of: daily, weekly, monthly',
   })
   @IsOptional()
   period?: RevenuePeriod = RevenuePeriod.DAILY;
 
-  /**
-   * Start date for the revenue query (inclusive).
-   * Defaults to 30/84 days or 12 months ago based on period if not provided.
-   */
+  @ApiPropertyOptional({ example: '2026-01-01', description: 'Start date (ISO 8601, inclusive)' })
   @IsDateString({}, { message: 'startDate must be a valid ISO 8601 date string' })
   @IsOptional()
   startDate?: string;
 
-  /**
-   * End date for the revenue query (inclusive).
-   * Defaults to today if not provided.
-   */
+  @ApiPropertyOptional({ example: '2026-03-31', description: 'End date (ISO 8601, inclusive)' })
   @IsDateString({}, { message: 'endDate must be a valid ISO 8601 date string' })
   @IsOptional()
   endDate?: string;

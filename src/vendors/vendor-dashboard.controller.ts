@@ -47,6 +47,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { VendorDashboardService } from './vendor-dashboard.service';
 import { RevenueQueryDto } from './dto/revenue-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -56,6 +57,8 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
 import { User } from '../users/entities/user.entity';
 
+@ApiTags('Vendor Dashboard')
+@ApiBearerAuth()
 @Controller({ path: 'vendors', version: '1' })
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.VENDOR)
@@ -85,6 +88,8 @@ export class VendorDashboardController {
    * data scoped to that vendor. The vendor can only ever see their own data.
    */
   @Get('dashboard')
+  @ApiOperation({ summary: 'Get vendor business health snapshot', description: 'Roles: vendor. Returns sales, orders, revenue, and rating summary.' })
+  @ApiResponse({ status: 200, description: 'Vendor dashboard stats' })
   async getDashboard(@CurrentUser() user: User) {
     const stats = await this.vendorDashboardService.getVendorDashboard(user.id);
     return {
@@ -125,6 +130,8 @@ export class VendorDashboardController {
    * Dashboard design often uses denormalized for lists, computed for detail views.
    */
   @Get('products/performance')
+  @ApiOperation({ summary: 'Get products ranked by revenue', description: 'Roles: vendor' })
+  @ApiResponse({ status: 200, description: 'Products with orderCount, viewCount, and revenue' })
   async getProductPerformance(@CurrentUser() user: User) {
     const products = await this.vendorDashboardService.getProductPerformance(user.id);
     return {
@@ -168,6 +175,8 @@ export class VendorDashboardController {
    * class-transformer also handles type coercion (e.g., @Transform decorators).
    */
   @Get('revenue')
+  @ApiOperation({ summary: 'Get revenue trend by time period', description: 'Roles: vendor. Returns timeline data for a chart.' })
+  @ApiResponse({ status: 200, description: 'Revenue breakdown with timeline and summary' })
   async getRevenueBreakdown(
     @CurrentUser() user: User,
     @Query() query: RevenueQueryDto,

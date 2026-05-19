@@ -1,13 +1,8 @@
 import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
-/**
- * DTO for completing a delivery.
- *
- * The proof-of-delivery image is handled via multipart file upload
- * (not in this DTO — it comes via @UploadedFile() in the controller).
- * This DTO only handles the text fields.
- */
 export class CompleteDeliveryDto {
+  @ApiPropertyOptional({ example: 'Left at the gate with security', maxLength: 500 })
   @IsOptional()
   @IsString()
   @MaxLength(500)

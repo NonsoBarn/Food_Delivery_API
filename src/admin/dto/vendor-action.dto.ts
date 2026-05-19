@@ -35,38 +35,22 @@
  */
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { ValidateIf } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { VendorStatus } from '../../users/entities/vendor-profile.entity';
 
 export class VendorActionDto {
-  /**
-   * The new status to apply to the vendor account.
-   * Must be one of: pending, approved, rejected, suspended
-   */
+  @ApiProperty({ enum: VendorStatus, example: VendorStatus.APPROVED })
   @IsEnum(VendorStatus, {
     message: `status must be one of: ${Object.values(VendorStatus).join(', ')}`,
   })
   status: VendorStatus;
 
-  /**
-   * Reason for rejection — required ONLY when status = 'rejected'.
-   *
-   * @ValidateIf runs the @IsString() decorator below it only when the
-   * condition is true. If status is 'approved' or 'suspended', this
-   * validator is skipped and rejectionReason can be absent.
-   *
-   * Why require it for rejections?
-   * - Vendors deserve an explanation for why they were rejected
-   * - Prevents admins from rejecting silently (accountability)
-   * - The vendor can fix the issue and reapply
-   */
+  @ApiPropertyOptional({ example: 'Documents are incomplete', description: 'Required when status is rejected' })
   @ValidateIf((dto: VendorActionDto) => dto.status === VendorStatus.REJECTED)
   @IsString({ message: 'Rejection reason must be a string' })
   rejectionReason?: string;
 
-  /**
-   * Optional reason for suspension (for internal records).
-   * Not required — the admin might have an out-of-band reason.
-   */
+  @ApiPropertyOptional({ example: 'Multiple customer complaints' })
   @IsString({ message: 'Suspension reason must be a string' })
   @IsOptional()
   suspensionReason?: string;

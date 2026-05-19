@@ -19,6 +19,7 @@ import {
   Logger,
   Req,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { PaymentsService } from './payments.service';
@@ -27,6 +28,7 @@ import { PaymentProvider } from './enums/payment-provider.enum';
 
 type WebhookEvent = Record<string, unknown>;
 
+@ApiTags('Webhooks')
 @Controller({
   path: 'webhooks/payments',
   version: '1',
@@ -47,6 +49,9 @@ export class PaymentsWebhookController {
    */
   @Post('stripe')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Stripe webhook (public — signature-verified)', description: 'Called by Stripe. Do not call manually.' })
+  @ApiHeader({ name: 'stripe-signature', required: true })
+  @ApiResponse({ status: 200, description: '{ received: true }' })
   async handleStripeWebhook(
     @Req() req: RawBodyRequest<Request>,
     @Headers('stripe-signature') signature: string,
@@ -86,6 +91,9 @@ export class PaymentsWebhookController {
    */
   @Post('paystack')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Paystack webhook (public — signature-verified)', description: 'Called by Paystack. Do not call manually.' })
+  @ApiHeader({ name: 'x-paystack-signature', required: true })
+  @ApiResponse({ status: 200, description: '{ received: true }' })
   async handlePaystackWebhook(
     @Req() req: RawBodyRequest<Request>,
     @Headers('x-paystack-signature') signature: string,
@@ -125,6 +133,9 @@ export class PaymentsWebhookController {
    */
   @Post('flutterwave')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Flutterwave webhook (public — signature-verified)', description: 'Called by Flutterwave. Do not call manually.' })
+  @ApiHeader({ name: 'verif-hash', required: true })
+  @ApiResponse({ status: 200, description: '{ received: true }' })
   async handleFlutterwaveWebhook(
     @Req() req: RawBodyRequest<Request>,
     @Headers('verif-hash') signature: string,

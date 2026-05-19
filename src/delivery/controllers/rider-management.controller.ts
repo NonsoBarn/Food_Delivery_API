@@ -38,6 +38,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { RiderManagementService } from '../services/rider-management.service';
 import { RiderLocationService } from '../services/rider-location.service';
 import { RejectRiderDto } from '../dto/reject-rider.dto';
@@ -52,6 +53,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { User } from '../../users/entities/user.entity';
 
+@ApiTags('Riders')
+@ApiBearerAuth()
 @Controller({
   path: 'riders',
   version: '1',
@@ -76,6 +79,8 @@ export class RiderManagementController {
    */
   @Get()
   @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'List all riders with filters', description: 'Roles: admin' })
+  @ApiResponse({ status: 200, description: 'Paginated rider list' })
   async getAllRiders(@Query() filters: RiderFilterDto) {
     return this.riderManagementService.findAllRiders(filters);
   }
@@ -90,6 +95,8 @@ export class RiderManagementController {
    */
   @Get('available')
   @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get available (approved + online) riders', description: 'Roles: admin' })
+  @ApiResponse({ status: 200, description: 'Available riders' })
   async getAvailableRiders() {
     return this.riderManagementService.findAvailableRiders();
   }
@@ -116,6 +123,8 @@ export class RiderManagementController {
   @Patch('availability')
   @Roles(UserRole.RIDER)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Toggle rider availability (online/offline)', description: 'Roles: rider' })
+  @ApiResponse({ status: 200, description: 'Availability updated' })
   async toggleAvailability(
     @Body() dto: UpdateAvailabilityDto,
     @CurrentUser() user: User,
@@ -152,6 +161,8 @@ export class RiderManagementController {
   @Put('location')
   @Roles(UserRole.RIDER)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update rider GPS location', description: 'Roles: rider. Call every 5–10 seconds while on duty.' })
+  @ApiResponse({ status: 200, description: '{ message: "Location updated" }' })
   async updateLocation(
     @Body() dto: UpdateLocationDto,
     @CurrentUser() user: User,
@@ -183,6 +194,8 @@ export class RiderManagementController {
    */
   @Get('nearby')
   @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Find nearest riders to a location', description: 'Roles: admin. Uses Redis GEOSEARCH.' })
+  @ApiResponse({ status: 200, description: 'Nearest riders with distances' })
   async findNearbyRiders(@Query() dto: FindNearbyRidersDto) {
     return this.riderLocationService.findNearestRiders(
       dto.latitude,
@@ -202,6 +215,8 @@ export class RiderManagementController {
    */
   @Get('my-deliveries')
   @Roles(UserRole.RIDER)
+  @ApiOperation({ summary: "Get rider's own delivery history", description: 'Roles: rider' })
+  @ApiResponse({ status: 200, description: 'Paginated delivery history' })
   async getMyDeliveries(
     @CurrentUser() user: User,
     @Query('page') page?: number,
@@ -233,6 +248,8 @@ export class RiderManagementController {
   @Patch(':riderId/approve')
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Approve a rider application', description: 'Roles: admin' })
+  @ApiResponse({ status: 200, description: 'Rider approved' })
   async approveRider(
     @Param('riderId') riderId: string,
     @CurrentUser() user: User,
@@ -252,6 +269,8 @@ export class RiderManagementController {
   @Patch(':riderId/reject')
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reject a rider application', description: 'Roles: admin. Rejection reason required.' })
+  @ApiResponse({ status: 200, description: 'Rider rejected' })
   async rejectRider(
     @Param('riderId') riderId: string,
     @Body() dto: RejectRiderDto,
@@ -273,6 +292,8 @@ export class RiderManagementController {
   @Patch(':riderId/suspend')
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Suspend a rider', description: 'Roles: admin. Immediately takes rider offline.' })
+  @ApiResponse({ status: 200, description: 'Rider suspended' })
   async suspendRider(@Param('riderId') riderId: string) {
     return this.riderManagementService.suspendRider(riderId);
   }

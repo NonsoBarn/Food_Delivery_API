@@ -18,6 +18,7 @@
  */
 import { IsInt, IsOptional, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ReviewFilterDto {
   /**
@@ -26,18 +27,14 @@ export class ReviewFilterDto {
    * Page 1 = first 20 results, page 2 = next 20, etc.
    * The service translates this to SQL OFFSET: (page - 1) * limit
    */
+  @ApiPropertyOptional({ example: 1, minimum: 1, default: 1 })
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @IsOptional()
   page?: number = 1;
 
-  /**
-   * Items per page.
-   *
-   * Capped at 50 to prevent clients from requesting hundreds of reviews
-   * at once (protecting server memory and DB query time).
-   */
+  @ApiPropertyOptional({ example: 20, minimum: 1, maximum: 50, default: 20 })
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -45,14 +42,7 @@ export class ReviewFilterDto {
   @IsOptional()
   limit?: number = 20;
 
-  /**
-   * Filter by exact star rating (optional).
-   *
-   * Useful for: "Show me only the 1-star reviews" (to find problems)
-   * or "Show me only 5-star reviews" (to highlight on a landing page).
-   *
-   * When omitted, all ratings are returned.
-   */
+  @ApiPropertyOptional({ example: 5, minimum: 1, maximum: 5, description: 'Filter by exact star rating' })
   @Type(() => Number)
   @IsInt()
   @Min(1)

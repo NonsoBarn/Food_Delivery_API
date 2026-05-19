@@ -20,6 +20,7 @@
  */
 import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateProductReviewDto {
   /**
@@ -35,18 +36,14 @@ export class CreateProductReviewDto {
    * The precision in the AVERAGE (4.37 stars) comes from aggregating many
    * integer ratings, not from individual ratings being fractional.
    */
+  @ApiProperty({ example: 5, minimum: 1, maximum: 5, description: 'Star rating (1–5)' })
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(5)
   rating: number;
 
-  /**
-   * Written review (optional).
-   *
-   * MaxLength(1000): Prevents abuse (very long reviews hit DB limits, cost bandwidth).
-   * A 1000-character review is about 150 words — plenty for food feedback.
-   */
+  @ApiPropertyOptional({ example: 'Really delicious, would order again!', maxLength: 1000 })
   @IsString()
   @IsOptional()
   @MaxLength(1000)

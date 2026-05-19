@@ -1,17 +1,8 @@
 import { IsString, IsNotEmpty, MaxLength } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
-/**
- * DTO for rejecting a rider application.
- *
- * KEY LEARNING: Required Reasons for Negative Actions
- * ====================================================
- * Whenever your system performs a negative action (reject, suspend, cancel),
- * always require a reason. This creates an audit trail and:
- * - Helps the rider understand WHY they were rejected
- * - Protects the platform from arbitrary decisions
- * - Enables analysis of common rejection reasons
- */
 export class RejectRiderDto {
+  @ApiProperty({ example: 'Driver license is expired', maxLength: 500 })
   @IsString()
   @IsNotEmpty({ message: 'Rejection reason is required' })
   @MaxLength(500)

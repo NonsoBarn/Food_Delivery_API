@@ -41,6 +41,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ReviewsService } from './reviews.service';
 import { CreateProductReviewDto } from './dto/create-product-review.dto';
 import { CreateVendorReviewDto } from './dto/create-vendor-review.dto';
@@ -52,6 +53,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
 import { User } from '../users/entities/user.entity';
 
+@ApiTags('Reviews')
 @Controller({
   path: 'reviews',
   version: '1',
@@ -59,30 +61,15 @@ import { User } from '../users/entities/user.entity';
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
-  // ================================================================
-  // PRODUCT REVIEWS
-  // ================================================================
-
-  /**
-   * POST /api/v1/reviews/products/:productId
-   *
-   * Customers submit a star rating + optional comment for a product.
-   *
-   * Guard stack:
-   *   JwtAuthGuard → validates the Bearer token, populates @CurrentUser
-   *   RolesGuard   → checks the user's role matches @Roles(CUSTOMER)
-   *
-   * @Param('productId') — extracts the UUID from the URL path
-   * @CurrentUser() — injects the authenticated User entity (from JWT payload)
-   * @Body() — the validated DTO (rating + comment)
-   *
-   * The service receives user.id (User.id), then internally looks up
-   * the CustomerProfile to get the customerId for the review.
-   */
   @Post('products/:productId')
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Submit a product review', description: 'Roles: customer' })
+  @ApiResponse({ status: 201, description: 'Review submitted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden — not a customer' })
   async createProductReview(
     @Param('productId') productId: string,
     @CurrentUser() user: User,
@@ -114,6 +101,8 @@ export class ReviewsController {
    * in the DTO handles the string-to-number conversion for page/limit/rating.
    */
   @Get('products/:productId')
+  @ApiOperation({ summary: 'Get reviews for a product (public)' })
+  @ApiResponse({ status: 200, description: 'Paginated product reviews with average rating' })
   async getProductReviews(
     @Param('productId') productId: string,
     @Query() filters: ReviewFilterDto,
@@ -156,6 +145,10 @@ export class ReviewsController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Rate a vendor after delivery', description: 'Roles: customer' })
+  @ApiResponse({ status: 201, description: 'Vendor rated' })
+  @ApiResponse({ status: 403, description: 'Forbidden — not a customer' })
   async createVendorReview(
     @Param('vendorId') vendorId: string,
     @CurrentUser() user: User,
@@ -179,6 +172,8 @@ export class ReviewsController {
    * overall average rating. Displayed on the vendor's menu/store page.
    */
   @Get('vendors/:vendorId')
+  @ApiOperation({ summary: 'Get reviews for a vendor (public)' })
+  @ApiResponse({ status: 200, description: 'Paginated vendor reviews with average rating' })
   async getVendorReviews(
     @Param('vendorId') vendorId: string,
     @Query() filters: ReviewFilterDto,

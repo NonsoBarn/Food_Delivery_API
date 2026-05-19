@@ -12,6 +12,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import express from 'express';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { CartService } from './cart.service';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { UpdateCartItemDto } from './dto/update-cart-item.dto';
@@ -34,11 +35,12 @@ import { User } from 'src/users/entities/user.entity';
  * Cart Migration:
  * - When user logs in, anonymous cart migrated to user cart
  */
+@ApiTags('Cart')
 @Controller({
   path: 'cart',
   version: '1',
 })
-@UseGuards(OptionalJwtAuthGuard) // Runs JWT strategy if token present; never throws if missing
+@UseGuards(OptionalJwtAuthGuard)
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
@@ -66,6 +68,8 @@ export class CartController {
    */
   @Post()
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Add item to cart', description: 'Auth optional. Use X-Session-Id header for anonymous carts.' })
+  @ApiResponse({ status: 200, description: 'Updated cart' })
   async addToCart(
     @Body() dto: AddToCartDto,
     @Req() req: express.Request,
@@ -93,6 +97,8 @@ export class CartController {
    * - Item count
    */
   @Get()
+  @ApiOperation({ summary: 'Get cart contents', description: 'Auth optional.' })
+  @ApiResponse({ status: 200, description: 'Cart with items, totals, and vendor groups' })
   async getCart(@Req() req: express.Request, @CurrentUser() user?: User) {
     const isAuthenticated = !!user;
     const userId = isAuthenticated ? user.id : this.getSessionId(req);
@@ -116,6 +122,8 @@ export class CartController {
    * - quantity > 0: Updates to new quantity
    */
   @Patch(':productId')
+  @ApiOperation({ summary: 'Update cart item quantity (0 = remove)', description: 'Auth optional.' })
+  @ApiResponse({ status: 200, description: 'Updated cart' })
   async updateCartItem(
     @Param('productId') productId: string,
     @Body() dto: UpdateCartItemDto,
@@ -142,6 +150,8 @@ export class CartController {
    * Response: 200 OK with updated cart
    */
   @Delete(':productId')
+  @ApiOperation({ summary: 'Remove item from cart', description: 'Auth optional.' })
+  @ApiResponse({ status: 200, description: 'Updated cart' })
   async removeFromCart(
     @Param('productId') productId: string,
     @Req() req: express.Request,
@@ -167,6 +177,8 @@ export class CartController {
    */
   @Delete()
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Clear the entire cart', description: 'Auth optional.' })
+  @ApiResponse({ status: 204, description: 'Cart cleared' })
   async clearCart(@Req() req: express.Request, @CurrentUser() user?: User) {
     const isAuthenticated = !!user;
     const userId = isAuthenticated ? user.id : this.getSessionId(req);
@@ -189,6 +201,9 @@ export class CartController {
    */
   @Post('migrate')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Migrate anonymous cart to authenticated user', description: 'Call after login. Requires X-Session-Id header with old session ID.' })
+  @ApiResponse({ status: 200, description: 'Merged cart' })
   async migrateCart(@Req() req: express.Request, @CurrentUser() user: User) {
     const sessionId = this.getSessionId(req);
     const userId = user.id;
@@ -217,6 +232,9 @@ export class CartController {
    */
   @Post('validate')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Validate cart before checkout', description: 'Checks stock, availability, and price changes.' })
+  @ApiResponse({ status: 200, description: '{ valid, errors, warnings }' })
   async validateCart(@CurrentUser() user: User) {
     return await this.cartService.validateCart(user.id);
   }

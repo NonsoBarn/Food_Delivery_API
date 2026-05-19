@@ -45,6 +45,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
@@ -56,6 +57,8 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
 import { User } from '../users/entities/user.entity';
 
+@ApiTags('Orders')
+@ApiBearerAuth()
 @Controller({
   path: 'orders',
   version: '1',
@@ -92,6 +95,9 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER)
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Place an order (checkout)', description: 'Roles: customer. Cart is read from Redis — no prices in body.' })
+  @ApiResponse({ status: 201, description: 'Order(s) created' })
+  @ApiResponse({ status: 403, description: 'Forbidden — not a customer' })
   async createOrder(@Body() dto: CreateOrderDto, @CurrentUser() user: User) {
     return await this.ordersService.createOrder(user as any, dto);
   }
@@ -115,6 +121,8 @@ export class OrdersController {
   @Get('my-orders')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.CUSTOMER)
+  @ApiOperation({ summary: "Get customer's order history", description: 'Roles: customer' })
+  @ApiResponse({ status: 200, description: 'Paginated order list' })
   async getMyOrders(
     @CurrentUser() user: User,
     @Query() filters: OrderFilterDto,
@@ -147,6 +155,8 @@ export class OrdersController {
   @Get('vendor-orders')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.VENDOR)
+  @ApiOperation({ summary: "Get vendor's incoming orders", description: 'Roles: vendor' })
+  @ApiResponse({ status: 200, description: 'Paginated vendor order list' })
   async getVendorOrders(
     @CurrentUser() user: User,
     @Query() filters: OrderFilterDto,
@@ -173,6 +183,8 @@ export class OrdersController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'List all orders (admin)', description: 'Roles: admin' })
+  @ApiResponse({ status: 200, description: 'All orders with filters' })
   async getAllOrders(@Query() filters: OrderFilterDto) {
     return await this.ordersService.findAllOrders(filters);
   }
@@ -192,6 +204,8 @@ export class OrdersController {
    */
   @Get('group/:orderGroupId')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get all orders from one checkout (multi-vendor)' })
+  @ApiResponse({ status: 200, description: 'Orders in the group' })
   async getOrderGroup(
     @Param('orderGroupId') orderGroupId: string,
     @CurrentUser() user: User,
@@ -217,6 +231,9 @@ export class OrdersController {
    */
   @Get(':id')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get a single order by ID' })
+  @ApiResponse({ status: 200, description: 'Order detail' })
+  @ApiResponse({ status: 403, description: 'Forbidden — not your order' })
   async getOrder(@Param('id') id: string, @CurrentUser() user: User) {
     const reqUser = user;
     const order = await this.ordersService.findOne(id);
@@ -271,6 +288,9 @@ export class OrdersController {
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.VENDOR, UserRole.CUSTOMER, UserRole.RIDER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update order status', description: 'Roles: all. State machine enforces valid transitions per role.' })
+  @ApiResponse({ status: 200, description: 'Updated order' })
+  @ApiResponse({ status: 403, description: 'Invalid transition for your role' })
   async updateOrderStatus(
     @Param('id') id: string,
     @Body() dto: UpdateOrderStatusDto,

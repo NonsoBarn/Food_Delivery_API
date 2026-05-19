@@ -47,6 +47,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { DeliveryService } from '../services/delivery.service';
 import { RiderLocationService } from '../services/rider-location.service';
 import { AssignDeliveryDto } from '../dto/assign-delivery.dto';
@@ -61,6 +62,8 @@ import { UserRole } from '../../common/enums/user-role.enum';
 import { User } from '../../users/entities/user.entity';
 import { AssignmentType } from '../enums/assignment-type.enum';
 
+@ApiTags('Delivery')
+@ApiBearerAuth()
 @Controller({
   path: 'deliveries',
   version: '1',
@@ -89,6 +92,8 @@ export class DeliveryController {
   @Post('assign')
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Manually assign an order to a rider', description: 'Roles: admin' })
+  @ApiResponse({ status: 201, description: 'Delivery assigned' })
   async assignDelivery(
     @Body() dto: AssignDeliveryDto,
     @CurrentUser() user: User,
@@ -122,6 +127,8 @@ export class DeliveryController {
   @Post('auto-assign')
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Auto-assign order to nearest available rider', description: 'Roles: admin. Uses Redis GEOSEARCH.' })
+  @ApiResponse({ status: 200, description: '{ delivery, assigned } or { message, assigned: false }' })
   async autoAssignDelivery(@Body() dto: AutoAssignDto) {
     const result = await this.deliveryService.autoAssignOrder(dto.orderId);
 
@@ -150,6 +157,8 @@ export class DeliveryController {
    */
   @Get('active')
   @Roles(UserRole.RIDER)
+  @ApiOperation({ summary: "Get rider's current active delivery", description: 'Roles: rider' })
+  @ApiResponse({ status: 200, description: 'Active delivery or null' })
   async getActiveDelivery(@CurrentUser() user: User) {
     const reqUser = user as any;
 
@@ -172,6 +181,8 @@ export class DeliveryController {
    */
   @Get('order/:orderId')
   @Roles(UserRole.CUSTOMER, UserRole.RIDER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get delivery info for an order', description: 'Roles: customer, rider, admin' })
+  @ApiResponse({ status: 200, description: 'Delivery detail' })
   async getDeliveryByOrder(@Param('orderId') orderId: string) {
     return this.deliveryService.findDeliveryByOrder(orderId);
   }
@@ -197,6 +208,8 @@ export class DeliveryController {
    */
   @Get('order/:orderId/track')
   @Roles(UserRole.CUSTOMER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Track rider real-time location for a delivery', description: 'Roles: customer, admin. Poll every few seconds.' })
+  @ApiResponse({ status: 200, description: 'Rider location or null' })
   async trackDelivery(@Param('orderId') orderId: string) {
     return this.riderLocationService.getDeliveryLocation(orderId);
   }
@@ -215,6 +228,8 @@ export class DeliveryController {
   @Patch(':id/accept')
   @Roles(UserRole.RIDER)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Accept a delivery assignment', description: 'Roles: rider' })
+  @ApiResponse({ status: 200, description: 'Delivery accepted' })
   async acceptDelivery(
     @Param('id') id: string,
     @CurrentUser() user: User,
@@ -235,6 +250,8 @@ export class DeliveryController {
   @Patch(':id/reject')
   @Roles(UserRole.RIDER)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reject a delivery assignment', description: 'Roles: rider. Order goes back to pool.' })
+  @ApiResponse({ status: 200, description: 'Delivery rejected' })
   async rejectDelivery(
     @Param('id') id: string,
     @CurrentUser() user: User,
@@ -254,6 +271,8 @@ export class DeliveryController {
   @Patch(':id/pickup')
   @Roles(UserRole.RIDER)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Mark food as picked up from vendor', description: 'Roles: rider' })
+  @ApiResponse({ status: 200, description: 'Delivery and order status updated to PICKED_UP' })
   async pickUpDelivery(
     @Param('id') id: string,
     @CurrentUser() user: User,
@@ -283,6 +302,9 @@ export class DeliveryController {
   @Roles(UserRole.RIDER)
   @UseInterceptors(FileInterceptor('proofImage'))
   @HttpCode(HttpStatus.OK)
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Complete a delivery with optional proof image', description: 'Roles: rider. multipart/form-data: proofImage (file) + deliveryNotes (string).' })
+  @ApiResponse({ status: 200, description: 'Delivery completed' })
   async completeDelivery(
     @Param('id') id: string,
     @Body() dto: CompleteDeliveryDto,
@@ -309,6 +331,8 @@ export class DeliveryController {
   @Patch(':id/cancel')
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Cancel a delivery', description: 'Roles: admin' })
+  @ApiResponse({ status: 200, description: 'Delivery cancelled' })
   async cancelDelivery(
     @Param('id') id: string,
     @Body() dto: CancelDeliveryDto,
@@ -330,6 +354,8 @@ export class DeliveryController {
    */
   @Get(':id')
   @Roles(UserRole.RIDER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get delivery details by ID', description: 'Roles: rider, admin' })
+  @ApiResponse({ status: 200, description: 'Delivery detail' })
   async getDelivery(@Param('id') id: string) {
     return this.deliveryService.getDeliveryDetails(id);
   }

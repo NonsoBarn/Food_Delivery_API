@@ -58,6 +58,7 @@ import {
   HttpStatus,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { VendorActionDto } from './dto/vendor-action.dto';
 import { ReportQueryDto } from './dto/report-query.dto';
@@ -71,6 +72,8 @@ import { User } from '../users/entities/user.entity';
 import { CreateCategoryDto } from '../products/dto/create-category.dto';
 import { UpdateCategoryDto } from '../products/dto/update-category.dto';
 
+@ApiTags('Admin')
+@ApiBearerAuth()
 @Controller({ path: 'admin', version: '1' })
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
@@ -94,6 +97,8 @@ export class AdminController {
    * No query params — this is a fixed snapshot of "right now."
    */
   @Get('stats')
+  @ApiOperation({ summary: 'Get platform-wide statistics snapshot', description: 'Roles: admin' })
+  @ApiResponse({ status: 200, description: 'Users, orders, and revenue counts' })
   async getPlatformStats() {
     const stats = await this.adminService.getPlatformStats();
     return {
@@ -130,6 +135,11 @@ export class AdminController {
    * non-numeric — which may not be the UX you want for optional params.
    */
   @Get('vendors')
+  @ApiOperation({ summary: 'List vendors (paginated, filterable)', description: 'Roles: admin' })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by vendor status' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Paginated vendor list' })
   async getVendors(
     @Query('status') status?: VendorStatus,
     @Query('page') page?: string,
@@ -169,6 +179,8 @@ export class AdminController {
    * a Postgres error — less clear for the client.
    */
   @Get('vendors/:id')
+  @ApiOperation({ summary: 'Get vendor by ID with stats', description: 'Roles: admin' })
+  @ApiResponse({ status: 200, description: 'Vendor detail with productCount, totalOrders, totalRevenue' })
   async getVendorById(@Param('id', ParseUUIDPipe) id: string) {
     const vendor = await this.adminService.getVendorById(id);
     return {
@@ -195,6 +207,8 @@ export class AdminController {
    * Returns 200 (default for PATCH) — the vendor record was updated, not created.
    */
   @Patch('vendors/:id/status')
+  @ApiOperation({ summary: 'Approve, reject, or suspend a vendor', description: 'Roles: admin. Rejection requires rejectionReason.' })
+  @ApiResponse({ status: 200, description: 'Updated vendor' })
   async updateVendorStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: VendorActionDto,
@@ -220,6 +234,11 @@ export class AdminController {
    * Omit ?role to get all users regardless of role.
    */
   @Get('users')
+  @ApiOperation({ summary: 'List all users (paginated, filterable by role)', description: 'Roles: admin' })
+  @ApiQuery({ name: 'role', required: false, description: 'Filter by role' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Paginated user list' })
   async getAllUsers(
     @Query('role') role?: UserRole,
     @Query('page') page?: string,
@@ -262,6 +281,8 @@ export class AdminController {
    * This is cleaner than @Query('period'), @Query('startDate'), etc. separately.
    */
   @Get('reports')
+  @ApiOperation({ summary: 'Generate revenue and order report', description: 'Roles: admin. Supports daily/weekly/monthly grouping.' })
+  @ApiResponse({ status: 200, description: 'Report with revenueTimeline, ordersByStatus, topVendors' })
   async generateReport(@Query() query: ReportQueryDto) {
     const report = await this.adminService.generateReport(query);
     return {
@@ -289,6 +310,8 @@ export class AdminController {
    * with different requirements — keeping them separate respects that.
    */
   @Get('categories')
+  @ApiOperation({ summary: 'List all categories including inactive', description: 'Roles: admin' })
+  @ApiResponse({ status: 200, description: 'All categories' })
   async getAllCategories() {
     const categories = await this.adminService.getAllCategories();
     return {
@@ -305,6 +328,8 @@ export class AdminController {
    */
   @Post('categories')
   @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create a food category', description: 'Roles: admin' })
+  @ApiResponse({ status: 201, description: 'Category created' })
   async createCategory(@Body() dto: CreateCategoryDto) {
     const category = await this.adminService.createCategory(dto);
     return {
@@ -320,6 +345,8 @@ export class AdminController {
    * Setting isActive: false in the body performs a soft delete.
    */
   @Patch('categories/:id')
+  @ApiOperation({ summary: 'Update a category', description: 'Roles: admin' })
+  @ApiResponse({ status: 200, description: 'Updated category' })
   async updateCategory(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCategoryDto,
@@ -343,6 +370,8 @@ export class AdminController {
    */
   @Delete('categories/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Soft-delete a category', description: 'Roles: admin' })
+  @ApiResponse({ status: 204, description: 'Category deleted' })
   async deleteCategory(@Param('id', ParseUUIDPipe) id: string) {
     await this.adminService.deleteCategory(id);
     // 204 No Content — no response body
