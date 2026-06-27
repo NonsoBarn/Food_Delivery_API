@@ -1,4 +1,4 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Controller, Get, Post, HttpCode } from '@nestjs/common';
 import { AppService } from './app.service';
 import { CartCleanupJob } from './scheduled-jobs/jobs/cart-cleanup.job';
 import { ReportsJob } from './scheduled-jobs/jobs/reports.job';
@@ -16,6 +16,12 @@ export class AppController {
   @Get()
   getHello(): string {
     return this.appService.getHello();
+  }
+
+  @Get('health')
+  @HttpCode(200)
+  health(): { status: string; timestamp: string } {
+    return { status: 'ok', timestamp: new Date().toISOString() };
   }
 
   // ── Dev-only job trigger endpoints (Method B from testing guide) ──
