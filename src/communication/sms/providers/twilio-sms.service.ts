@@ -35,16 +35,31 @@ export class TwilioSmsService implements ISmsService {
   private readonly client: ReturnType<typeof twilio>;
   private readonly fromNumber: string;
 
+  private readonly isConfigured: boolean = false;
+
   constructor(private readonly configService: ConfigService) {
     const accountSid =
       this.configService.get<string>('twilio.accountSid') ?? '';
     const authToken = this.configService.get<string>('twilio.authToken') ?? '';
-
-    // Create the Twilio REST client once; reused for all SMS sends
-    this.client = twilio(accountSid, authToken);
-
     this.fromNumber =
       this.configService.get<string>('twilio.phoneNumber') ?? '';
+
+    if (!accountSid.startsWith('AC') || !authToken || !this.fromNumber) {
+      this.logger.warn(
+        'Twilio credentials missing or invalid — SMS service disabled',
+      );
+      return;
+    }
+
+    try {
+      this.client = twilio(accountSid, authToken);
+      this.isConfigured = true;
+      this.logger.log('Twilio SMS Service initialized');
+    } catch (error) {
+      this.logger.warn(
+        `Twilio initialization failed — SMS service disabled: ${error}`,
+      );
+    }
   }
 
   async sendOrderConfirmation(data: SmsOrderData): Promise<void> {
@@ -74,20 +89,21 @@ export class TwilioSmsService implements ISmsService {
   }
 
   private async sendSms(to: string, body: string): Promise<void> {
+    if (!this.isConfigured) {
+      this.logger.warn(`SMS not sent to ${to} — Twilio not configured`);
+      return;
+    }
     try {
       const message = await this.client.messages.create({
         to,
         from: this.fromNumber,
         body,
       });
-
-      this.logger.log(
-        `SMS sent via Twilio | SID: ${message.sid} | To: ${to}`,
-      );
+      this.logger.log(`SMS sent via Twilio | SID: ${message.sid} | To: ${to}`);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Twilio failed to send SMS to ${to}: ${message}`);
-      throw error; // Let BullMQ retry
+      throw error;
     }
   }
 }

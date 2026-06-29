@@ -23,13 +23,25 @@ let TwilioSmsService = TwilioSmsService_1 = class TwilioSmsService {
     logger = new common_1.Logger(TwilioSmsService_1.name);
     client;
     fromNumber;
+    isConfigured = false;
     constructor(configService) {
         this.configService = configService;
         const accountSid = this.configService.get('twilio.accountSid') ?? '';
         const authToken = this.configService.get('twilio.authToken') ?? '';
-        this.client = (0, twilio_1.default)(accountSid, authToken);
         this.fromNumber =
             this.configService.get('twilio.phoneNumber') ?? '';
+        if (!accountSid.startsWith('AC') || !authToken || !this.fromNumber) {
+            this.logger.warn('Twilio credentials missing or invalid — SMS service disabled');
+            return;
+        }
+        try {
+            this.client = (0, twilio_1.default)(accountSid, authToken);
+            this.isConfigured = true;
+            this.logger.log('Twilio SMS Service initialized');
+        }
+        catch (error) {
+            this.logger.warn(`Twilio initialization failed — SMS service disabled: ${error}`);
+        }
     }
     async sendOrderConfirmation(data) {
         await this.sendSms(data.to, (0, sms_templates_1.smsOrderConfirmation)(data.orderNumber, data.vendorName));
@@ -47,6 +59,10 @@ let TwilioSmsService = TwilioSmsService_1 = class TwilioSmsService {
         return 'twilio';
     }
     async sendSms(to, body) {
+        if (!this.isConfigured) {
+            this.logger.warn(`SMS not sent to ${to} — Twilio not configured`);
+            return;
+        }
         try {
             const message = await this.client.messages.create({
                 to,

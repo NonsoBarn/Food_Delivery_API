@@ -5,6 +5,7 @@ export declare class TwilioSmsService implements ISmsService {
     private readonly logger;
     private readonly client;
     private readonly fromNumber;
+    private readonly isConfigured;
     constructor(configService: ConfigService);
     sendOrderConfirmation(data: SmsOrderData): Promise<void>;
     sendOrderCancelled(data: SmsOrderData): Promise<void>;
