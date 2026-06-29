@@ -11,15 +11,15 @@ async function loadSecrets() {
     const secretName = process.env.SECRET_NAME;
     if (!secretName)
         return;
-    const client = new client_secrets_manager_1.SecretsManagerClient({ region: process.env.AWS_REGION || 'eu-west-2' });
+    const client = new client_secrets_manager_1.SecretsManagerClient({
+        region: process.env.AWS_REGION || 'eu-west-2',
+    });
     const response = await client.send(new client_secrets_manager_1.GetSecretValueCommand({ SecretId: secretName }));
     if (!response.SecretString)
         return;
     const secrets = JSON.parse(response.SecretString);
     for (const [key, value] of Object.entries(secrets)) {
-        if (!(key in process.env)) {
-            process.env[key] = value;
-        }
+        process.env[key] = value;
     }
 }
 async function bootstrap() {

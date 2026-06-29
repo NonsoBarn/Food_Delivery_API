@@ -13,16 +13,18 @@ async function loadSecrets(): Promise<void> {
   const secretName = process.env.SECRET_NAME;
   if (!secretName) return;
 
-  const client = new SecretsManagerClient({ region: process.env.AWS_REGION || 'eu-west-2' });
-  const response = await client.send(new GetSecretValueCommand({ SecretId: secretName }));
+  const client = new SecretsManagerClient({
+    region: process.env.AWS_REGION || 'eu-west-2',
+  });
+  const response = await client.send(
+    new GetSecretValueCommand({ SecretId: secretName }),
+  );
 
   if (!response.SecretString) return;
 
   const secrets: Record<string, string> = JSON.parse(response.SecretString);
   for (const [key, value] of Object.entries(secrets)) {
-    if (!(key in process.env)) {
-      process.env[key] = value;
-    }
+    process.env[key] = value as string;
   }
 }
 
@@ -91,8 +93,6 @@ async function bootstrap() {
   console.log(`🚀 Application is running on: http://localhost:${port}`);
   console.log(`📡 API v1: http://localhost:${port}/api/v1`);
   console.log(`📖 Swagger docs: http://localhost:${port}/docs`);
-  console.log(
-    `🔌 WebSocket: ws://localhost:${port}/socket.io/notifications`,
-  );
+  console.log(`🔌 WebSocket: ws://localhost:${port}/socket.io/notifications`);
 }
 bootstrap();
