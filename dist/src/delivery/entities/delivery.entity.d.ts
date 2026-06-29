@@ -1,0 +1,31 @@
+import { Order } from '../../orders/entities/order.entity';
+import { RiderProfile } from '../../users/entities/rider-profile.entity';
+import { DeliveryStatus } from '../enums/delivery-status.enum';
+import { AssignmentType } from '../enums/assignment-type.enum';
+export declare class Delivery {
+    id: string;
+    order: Order;
+    orderId: string;
+    rider: RiderProfile;
+    riderId: string;
+    status: DeliveryStatus;
+    assignmentType: AssignmentType;
+    assignedBy: string;
+    pickupLatitude: number;
+    pickupLongitude: number;
+    dropoffLatitude: number;
+    dropoffLongitude: number;
+    estimatedDistanceKm: number;
+    estimatedDurationMinutes: number;
+    proofOfDeliveryUrl: string;
+    deliveryNotes: string;
+    assignedAt: Date;
+    acceptedAt: Date;
+    rejectedAt: Date;
+    pickedUpAt: Date;
+    deliveredAt: Date;
+    cancelledAt: Date;
+    cancellationReason: string;
+    createdAt: Date;
+    updatedAt: Date;
+}

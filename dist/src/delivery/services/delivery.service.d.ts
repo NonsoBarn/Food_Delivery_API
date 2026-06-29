@@ -1,0 +1,30 @@
+import { Repository, DataSource } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Delivery } from '../entities/delivery.entity';
+import { Order } from '../../orders/entities/order.entity';
+import { RiderProfile } from '../../users/entities/rider-profile.entity';
+import { AssignmentType } from '../enums/assignment-type.enum';
+import { StorageFactoryService } from '../../storage/storage-factory.service';
+import { RiderLocationService } from './rider-location.service';
+export declare class DeliveryService {
+    private readonly deliveryRepository;
+    private readonly orderRepository;
+    private readonly riderRepository;
+    private readonly dataSource;
+    private readonly storageFactory;
+    private readonly riderLocationService;
+    private readonly eventEmitter;
+    private readonly logger;
+    constructor(deliveryRepository: Repository<Delivery>, orderRepository: Repository<Order>, riderRepository: Repository<RiderProfile>, dataSource: DataSource, storageFactory: StorageFactoryService, riderLocationService: RiderLocationService, eventEmitter: EventEmitter2);
+    assignOrderToRider(orderId: string, riderId: string, adminUserId: string | null, assignmentType: AssignmentType): Promise<Delivery>;
+    acceptDelivery(deliveryId: string, riderProfileId: string): Promise<Delivery>;
+    rejectDelivery(deliveryId: string, riderProfileId: string): Promise<Delivery>;
+    pickUpDelivery(deliveryId: string, riderProfileId: string): Promise<Delivery>;
+    completeDelivery(deliveryId: string, riderProfileId: string, proofImage?: Express.Multer.File, notes?: string): Promise<Delivery>;
+    cancelDelivery(deliveryId: string, adminUserId: string, reason: string): Promise<Delivery>;
+    autoAssignOrder(orderId: string): Promise<Delivery | null>;
+    findDeliveryByOrder(orderId: string): Promise<Delivery | null>;
+    findActiveDeliveryForRider(riderId: string): Promise<Delivery | null>;
+    getDeliveryDetails(deliveryId: string): Promise<Delivery>;
+    private findDeliveryForRider;
+}
