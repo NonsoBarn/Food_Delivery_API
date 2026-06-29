@@ -48,9 +48,9 @@ export class CloudinaryStorageService implements IStorageService {
     if (!apiSecret) missingConfigs.push('CLOUDINARY_API_SECRET');
 
     if (missingConfigs.length > 0) {
-      const errorMsg = `Cloudinary configuration is incomplete. Missing: ${missingConfigs.join(', ')}`;
-      this.logger.error(errorMsg);
-      throw new Error(errorMsg);
+      const errorMsg = `Cloudinary configuration is incomplete. Missing: ${missingConfigs.join(', ')} — service disabled`;
+      this.logger.warn(errorMsg);
+      return;
     }
 
     // Initialize Cloudinary (now we know values are not undefined)

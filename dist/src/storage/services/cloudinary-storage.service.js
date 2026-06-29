@@ -31,9 +31,9 @@ let CloudinaryStorageService = CloudinaryStorageService_1 = class CloudinaryStor
         if (!apiSecret)
             missingConfigs.push('CLOUDINARY_API_SECRET');
         if (missingConfigs.length > 0) {
-            const errorMsg = `Cloudinary configuration is incomplete. Missing: ${missingConfigs.join(', ')}`;
-            this.logger.error(errorMsg);
-            throw new Error(errorMsg);
+            const errorMsg = `Cloudinary configuration is incomplete. Missing: ${missingConfigs.join(', ')} — service disabled`;
+            this.logger.warn(errorMsg);
+            return;
         }
         cloudinary_1.v2.config({
             cloud_name: cloudName,
